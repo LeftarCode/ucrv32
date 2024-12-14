@@ -70,3 +70,4 @@
 `define ALU_SRA 4'b1000
 `define ALU_OR 4'b1001
 `define ALU_AND 4'b1010
+`define ALU_NONE 4'b1111
