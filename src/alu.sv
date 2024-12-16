@@ -1,7 +1,6 @@
 `include "common/constants.sv"
 
 module alu (
-  input logic clk_i,
   input logic [3:0] operation,
   input signed [31:0] operand_a,
   input signed [31:0] operand_b,
@@ -11,7 +10,7 @@ module alu (
 
   assign result_zero = (result == `ZERO);
 
-  always_ff @(clk_i) begin
+  always_comb begin
     result <= `ZERO;
     case (operation)
       `ALU_NONE: result <= result;
