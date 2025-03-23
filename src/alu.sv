@@ -13,7 +13,6 @@ module alu (
   always_comb begin
     result <= `ZERO;
     case (operation)
-      `ALU_NONE: result <= result;
       `ALU_ADD: result <= operand_a + operand_b;
       `ALU_SUB: result <= operand_a - operand_b;
       `ALU_SRL: result <= operand_a >> operand_b[4:0];

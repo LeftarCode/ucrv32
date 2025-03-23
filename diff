@@ -1,0 +1,2149 @@
+diff --git a/.gitignore b/.gitignore
+index 697cf4f..f2c26e6 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -1 +1,2 @@
+-obj_dir/
++obj_dir/
++waveform.vcd
+diff --git a/README.md b/README.md
+index 9bdf980..df755f9 100644
+--- a/README.md
++++ b/README.md
+@@ -1,6 +1,13 @@
+-# RV32E Microcontroller
+-
+-# Development toolchain
+-- Synthesis: `yosys`,
+-- Simulator: `verilator`,
+-- Waveform: `GTKwave`.
++# RV32E Microcontroller
++
++# Pipeline stages
++1. IF - fetch instruction from BRAM.
++2. ID - decoding instructions.
++3. EX - execution.
++4. MEM - memory access.
++5. WB - write back.
++
++# Development toolchain
++- Synthesis: `yosys`,
++- Simulator: `verilator`,
++- Waveform: `GTKwave`.
+diff --git a/assets/instructions.bin b/assets/instructions.bin
+index 6460ccc..2c93c12 100644
+--- a/assets/instructions.bin
++++ b/assets/instructions.bin
+@@ -1,13 +1,64 @@
+-00000001
+-00000002
+-00000003
+-00000004
+-00000005
+-00000006
+-00000007
+-00000008
+-00000009
+-0000000A
+-0000000B
+-0000000C
+-0000000D
++00
++00
++00
++00
++01
++00
++00
++00
++02
++00
++00
++00
++03
++00
++00
++00
++04
++00
++00
++00
++05
++00
++00
++00
++06
++00
++00
++00
++07
++00
++00
++00
++08
++00
++00
++00
++09
++00
++00
++00
++0A
++00
++00
++00
++0B
++00
++00
++00
++0C
++00
++00
++00
++0D
++00
++00
++00
++0E
++00
++00
++00
++0F
++00
++00
++00
+diff --git a/software/infinite_loop/.gitignore b/software/infinite_loop/.gitignore
+index 4e36409..f85eabd 100644
+--- a/software/infinite_loop/.gitignore
++++ b/software/infinite_loop/.gitignore
+@@ -1,2 +1,2 @@
+-build/
+-loop.elf
++build/
++loop.elf
+diff --git a/software/infinite_loop/Makefile b/software/infinite_loop/Makefile
+index 7bd5238..89167ec 100644
+--- a/software/infinite_loop/Makefile
++++ b/software/infinite_loop/Makefile
+@@ -1,38 +1,38 @@
+-NAME = loop
+-ARCH = riscv32
+-CC = $(ARCH)-unknown-elf-gcc
+-LD = $(ARCH)-unknown-elf-ld
+-OBJCOPY = $(ARCH)-unknown-elf-objcopy
+-CFLAGS = -nostdlib -nostartfiles
+-IDIR = inc
+-SDIR = src
+-BDIR = build
+-S_SRCS = $(wildcard $(SDIR)/*.s)
+-C_SRCS = $(wildcard $(SDIR)/*.c)
+-S_OBJS = $(S_SRCS:$(SDIR)/%.s=$(BDIR)/%_asm.o)
+-C_OBJS = $(C_SRCS:$(SDIR)/%.c=$(BDIR)/%.o)
+-
+-
+-all: clean directories $(NAME).img
+-
+-directories:
+-	mkdir -p build
+-
+-$(NAME).img: $(NAME).elf
+-	@mkdir -p $(@D)
+-	$(OBJCOPY) $(BDIR)/$(NAME).elf -I binary $(BDIR)/$(NAME).img
+-
+-$(NAME).elf: $(S_OBJS) link.ld $(C_OBJS)
+-	$(LD) -T link.ld -o $(BDIR)/$(NAME).elf $(S_OBJS) $(C_OBJS)
+-
+-$(BDIR)/%.o: $(SDIR)/%.c
+-	$(CC) $(CFLAGS) -c $< -o $@
+-
+-$(BDIR)/%_asm.o: $(SDIR)/%.s
+-	$(CC) $(SFLAGS) -c $< -o $@
+-
+-clean:
+-	rm -f $(BDIR)/*_asm.o $(BDIR)/*.o $(BDIR)/$(NAME).elf $(BDIR)/$(NAME).img
+-
+-run-spike: all
+-	spike -d --isa=rv32imc_zicntr --log-commits $(BDIR)/$(NAME).elf
++NAME = loop
++ARCH = riscv32
++CC = $(ARCH)-unknown-elf-gcc
++LD = $(ARCH)-unknown-elf-ld
++OBJCOPY = $(ARCH)-unknown-elf-objcopy
++CFLAGS = -nostdlib -nostartfiles
++IDIR = inc
++SDIR = src
++BDIR = build
++S_SRCS = $(wildcard $(SDIR)/*.s)
++C_SRCS = $(wildcard $(SDIR)/*.c)
++S_OBJS = $(S_SRCS:$(SDIR)/%.s=$(BDIR)/%_asm.o)
++C_OBJS = $(C_SRCS:$(SDIR)/%.c=$(BDIR)/%.o)
++
++
++all: clean directories $(NAME).img
++
++directories:
++	mkdir -p build
++
++$(NAME).img: $(NAME).elf
++	@mkdir -p $(@D)
++	$(OBJCOPY) $(BDIR)/$(NAME).elf -I binary $(BDIR)/$(NAME).img
++
++$(NAME).elf: $(S_OBJS) link.ld $(C_OBJS)
++	$(LD) -T link.ld -o $(BDIR)/$(NAME).elf $(S_OBJS) $(C_OBJS)
++
++$(BDIR)/%.o: $(SDIR)/%.c
++	$(CC) $(CFLAGS) -c $< -o $@
++
++$(BDIR)/%_asm.o: $(SDIR)/%.s
++	$(CC) $(SFLAGS) -c $< -o $@
++
++clean:
++	rm -f $(BDIR)/*_asm.o $(BDIR)/*.o $(BDIR)/$(NAME).elf $(BDIR)/$(NAME).img
++
++run-spike: all
++	spike -d --isa=rv32imc_zicntr --log-commits $(BDIR)/$(NAME).elf
+diff --git a/software/infinite_loop/link.ld b/software/infinite_loop/link.ld
+index a9156d8..ef7ade6 100644
+--- a/software/infinite_loop/link.ld
++++ b/software/infinite_loop/link.ld
+@@ -1,15 +1,15 @@
+-OUTPUT_ARCH( "riscv" )
+-ENTRY( _start )
+-SECTIONS
+-{
+-  . = 0x80000000;
+-  .text :
+-  {
+-    *(.text)
+-  }
+-  .data :
+-  {
+-    *(.data)
+-  }
+-  _end = .;
+-}
++OUTPUT_ARCH( "riscv" )
++ENTRY( _start )
++SECTIONS
++{
++  . = 0x80000000;
++  .text :
++  {
++    *(.text)
++  }
++  .data :
++  {
++    *(.data)
++  }
++  _end = .;
++}
+diff --git a/software/infinite_loop/src/hello.s b/software/infinite_loop/src/hello.s
+index 65bbef3..e66993b 100644
+--- a/software/infinite_loop/src/hello.s
++++ b/software/infinite_loop/src/hello.s
+@@ -1,6 +1,6 @@
+-hello.s:
+-.align 6
+-.globl _start
+-_start:
+-1:
+-  j 1b
++hello.s:
++.align 6
++.globl _start
++_start:
++1:
++  j 1b
+diff --git a/src/alu.sv b/src/alu.sv
+index 32eba8b..2dbda85 100644
+--- a/src/alu.sv
++++ b/src/alu.sv
+@@ -1,33 +1,32 @@
+-`include "common/constants.sv"
+-
+-module alu (
+-  input logic [3:0] operation,
+-  input signed [31:0] operand_a,
+-  input signed [31:0] operand_b,
+-  output logic [31:0] result,
+-  output logic result_zero
+-);
+-
+-  assign result_zero = (result == `ZERO);
+-
+-  always_comb begin
+-    result <= `ZERO;
+-    case (operation)
+-      `ALU_NONE: result <= result;
+-      `ALU_ADD: result <= operand_a + operand_b;
+-      `ALU_SUB: result <= operand_a - operand_b;
+-      `ALU_SRL: result <= operand_a >> operand_b[4:0];
+-      `ALU_SRA: result <= operand_a >>> operand_b[4:0];
+-      `ALU_SLL: result <= operand_a << operand_b[4:0];
+-      `ALU_SLT: result <= {31'b0, operand_a < operand_b};
+-      `ALU_SLTU: result <= {31'b0, $unsigned(operand_a) < $unsigned(operand_b)};
+-      `ALU_SEQ: result <= {31'b0, operand_a == operand_b};
+-      `ALU_XOR: result <= operand_a ^ operand_b;
+-      `ALU_OR: result <= operand_a | operand_b;
+-      `ALU_AND: result <= operand_a & operand_b;
+-      default: result <= `ZERO;
+-    endcase
+-   
+-  end
+-
+-endmodule
++`include "common/constants.sv"
++
++module alu (
++  input logic [3:0] operation,
++  input signed [31:0] operand_a,
++  input signed [31:0] operand_b,
++  output logic [31:0] result,
++  output logic result_zero
++);
++
++  assign result_zero = (result == `ZERO);
++
++  always_comb begin
++    result <= `ZERO;
++    case (operation)
++      `ALU_ADD: result <= operand_a + operand_b;
++      `ALU_SUB: result <= operand_a - operand_b;
++      `ALU_SRL: result <= operand_a >> operand_b[4:0];
++      `ALU_SRA: result <= operand_a >>> operand_b[4:0];
++      `ALU_SLL: result <= operand_a << operand_b[4:0];
++      `ALU_SLT: result <= {31'b0, operand_a < operand_b};
++      `ALU_SLTU: result <= {31'b0, $unsigned(operand_a) < $unsigned(operand_b)};
++      `ALU_SEQ: result <= {31'b0, operand_a == operand_b};
++      `ALU_XOR: result <= operand_a ^ operand_b;
++      `ALU_OR: result <= operand_a | operand_b;
++      `ALU_AND: result <= operand_a & operand_b;
++      default: result <= `ZERO;
++    endcase
++   
++  end
++
++endmodule
+diff --git a/src/common/constants.sv b/src/common/constants.sv
+index cb8aec0..1b0d59d 100644
+--- a/src/common/constants.sv
++++ b/src/common/constants.sv
+@@ -1,77 +1,76 @@
+-// RV32E Instructions
+-`define ZERO 32'b0
+-
+-//// RV32E opcodes
+-`define OPCODE_LUI 7'b0110111
+-`define OPCODE_AUIPC 7'b0010111
+-`define OPCODE_JAL 7'b1101111
+-`define OPCODE_JALR 7'b1100111
+-`define OPCODE_BRANCH 7'b1100011
+-`define OPCODE_LOAD 7'b0000011
+-`define OPCODE_STORE 7'b0100011
+-`define OPCODE_ALUIMM 7'b0010011
+-`define OPCODE_ALUREG 7'b0110011
+-`define OPCODE_FENCE_PAUSE 7'b0001111
+-`define OPCODE_SYSTEM 7'b1110011
+-
+-//// RV32E funct3
+-`define FUNCT3_BEQ 3'b000
+-`define FUNCT3_BNE 3'b001
+-`define FUNCT3_BLT 3'b100
+-`define FUNCT3_BGE 3'b101
+-`define FUNCT3_BLTU 3'b110
+-`define FUNCT3_BGEU 3'b111
+-
+-`define FUNCT3_LB 3'b000
+-`define FUNCT3_LH 3'b001
+-`define FUNCT3_LW 3'b010
+-`define FUNCT3_LBU 3'b100
+-`define FUNCT3_LHU 3'b101
+-
+-`define FUNCT3_SB 3'b000
+-`define FUNCT3_SH 3'b001
+-`define FUNCT3_SW 3'b010
+-
+-`define FUNCT3_ADDI 3'b000
+-`define FUNCT3_SLTI 3'b010
+-`define FUNCT3_SLTIU 3'b011
+-`define FUNCT3_XORI 3'b100
+-`define FUNCT3_ORI 3'b110
+-`define FUNCT3_ANDI 3'b111
+-`define FUNCT3_SLLI 3'b001
+-`define FUNCT3_SRLI_SRAI 3'b101
+-
+-`define FUNCT3_ADD_SUB 3'b000
+-`define FUNCT3_SLL 3'b001
+-`define FUNCT3_SLT 3'b010
+-`define FUNCT3_SLTU 3'b011
+-`define FUNCT3_XOR 3'b100
+-`define FUNCT3_SRL_SRA 3'b101
+-`define FUNCT3_OR 3'b110
+-`define FUNCT3_AND 3'b111
+-
+-`define FUNCT3_SYSTEM 3'b000
+-
+-//// RV32E funct7
+-`define FUNCT7_SRLI 7'b0000000
+-`define FUNCT7_SRAI 7'b0100000
+-`define FUNCT7_ADD 7'b0000000
+-`define FUNCT7_SUB 7'b0100000
+-`define FUNCT7_SRL 7'b0000000
+-`define FUNCT7_SRA 7'b0100000
+-
+-// ALU operations
+-`define ALU_ADD 4'b0000 
+-`define ALU_SUB 4'b0001
+-`define ALU_SLL 4'b0010
+-`define ALU_SLT 4'b0011
+-`define ALU_SLTU 4'b0100
+-`define ALU_SEQ 4'b0101
+-`define ALU_XOR 4'b0110
+-`define ALU_SRL 4'b0111
+-`define ALU_SRA 4'b1000
+-`define ALU_OR 4'b1001
+-`define ALU_AND 4'b1010
+-`define ALU_NONE 4'b1111
+-
+-// LSU operations
++// RV32E Instructions
++`define ZERO 32'b0
++
++//// RV32E opcodes
++`define OPCODE_LUI 7'b0110111
++`define OPCODE_AUIPC 7'b0010111
++`define OPCODE_JAL 7'b1101111
++`define OPCODE_JALR 7'b1100111
++`define OPCODE_BRANCH 7'b1100011
++`define OPCODE_LOAD 7'b0000011
++`define OPCODE_STORE 7'b0100011
++`define OPCODE_ALUIMM 7'b0010011
++`define OPCODE_ALUREG 7'b0110011
++`define OPCODE_FENCE_PAUSE 7'b0001111
++`define OPCODE_SYSTEM 7'b1110011
++
++//// RV32E funct3
++`define FUNCT3_BEQ 3'b000
++`define FUNCT3_BNE 3'b001
++`define FUNCT3_BLT 3'b100
++`define FUNCT3_BGE 3'b101
++`define FUNCT3_BLTU 3'b110
++`define FUNCT3_BGEU 3'b111
++
++`define FUNCT3_LB 3'b000
++`define FUNCT3_LH 3'b001
++`define FUNCT3_LW 3'b010
++`define FUNCT3_LBU 3'b100
++`define FUNCT3_LHU 3'b101
++
++`define FUNCT3_SB 3'b000
++`define FUNCT3_SH 3'b001
++`define FUNCT3_SW 3'b010
++
++`define FUNCT3_ADDI 3'b000
++`define FUNCT3_SLTI 3'b010
++`define FUNCT3_SLTIU 3'b011
++`define FUNCT3_XORI 3'b100
++`define FUNCT3_ORI 3'b110
++`define FUNCT3_ANDI 3'b111
++`define FUNCT3_SLLI 3'b001
++`define FUNCT3_SRLI_SRAI 3'b101
++
++`define FUNCT3_ADD_SUB 3'b000
++`define FUNCT3_SLL 3'b001
++`define FUNCT3_SLT 3'b010
++`define FUNCT3_SLTU 3'b011
++`define FUNCT3_XOR 3'b100
++`define FUNCT3_SRL_SRA 3'b101
++`define FUNCT3_OR 3'b110
++`define FUNCT3_AND 3'b111
++
++`define FUNCT3_SYSTEM 3'b000
++
++//// RV32E funct7
++`define FUNCT7_SRLI 7'b0000000
++`define FUNCT7_SRAI 7'b0100000
++`define FUNCT7_ADD 7'b0000000
++`define FUNCT7_SUB 7'b0100000
++`define FUNCT7_SRL 7'b0000000
++`define FUNCT7_SRA 7'b0100000
++
++// ALU operations
++`define ALU_ADD 4'b0000 
++`define ALU_SUB 4'b0001
++`define ALU_SLL 4'b0010
++`define ALU_SLT 4'b0011
++`define ALU_SLTU 4'b0100
++`define ALU_SEQ 4'b0101
++`define ALU_XOR 4'b0110
++`define ALU_SRL 4'b0111
++`define ALU_SRA 4'b1000
++`define ALU_OR 4'b1001
++`define ALU_AND 4'b1010
++
++// LSU operations
+diff --git a/src/common/enums.sv b/src/common/enums.sv
+index 6a87cb1..59b9ef5 100644
+--- a/src/common/enums.sv
++++ b/src/common/enums.sv
+@@ -1,3 +1,4 @@
+-
+-typedef enum logic[2:0] {INST_I, INST_S, INST_B, INST_U, INST_J} inst_type;
+-typedef enum logic[3:0] {ALU=1, LSU=2, BRU=4, SYSTEM=8} unit_type;
++
++typedef enum logic[3:0] {INST_I, INST_S, INST_B, INST_U, INST_J, INST_R} inst_type;
++typedef enum logic[3:0] {ALU=1, LSU=2, BRU=4, SYSTEM=8} unit_type;
++typedef enum logic[3:0] {INVALID_INSTRUCTION, NOT_ALIGNED_PC} exception_type;
+\ No newline at end of file
+diff --git a/src/common/functions.sv b/src/common/functions.sv
+deleted file mode 100644
+index e7ce5c0..0000000
+--- a/src/common/functions.sv
++++ /dev/null
+@@ -1,7 +0,0 @@
+-function automatic logic [num-1:0] repeat_value(input logic input_value, input int num);
+-    logic [num-1:0] tmp_v;
+-begin
+-    tmp_v = {num{input_value}}; // Powielamy wartość `input_value` `num` razy
+-    return tmp_v;
+-end
+-endfunction
+diff --git a/src/common/interfaces.sv b/src/common/interfaces.sv
+index 2ca3f32..b6248da 100644
+--- a/src/common/interfaces.sv
++++ b/src/common/interfaces.sv
+@@ -1,55 +1,55 @@
+-/* verilator lint_off DECLFILENAME */
+-interface ram_interface #(
+-  parameter DATA_WIDTH = 32,
+-  parameter ADDR_WIDTH = 32
+-)(
+-  input logic clk_i_a,
+-  input logic clk_i_b
+-);
+-  // PORT A
+-  logic we_i_a;
+-  logic en_i_a;
+-  logic [DATA_WIDTH-1:0] data_i_a;
+-  logic [DATA_WIDTH-1:0] data_o_a;
+-  logic [ADDR_WIDTH-1:0] addr_i_a;
+-  // PORT B
+-  logic we_i_b;
+-  logic en_i_b;
+-  logic [DATA_WIDTH-1:0] data_i_b;
+-  logic [DATA_WIDTH-1:0] data_o_b;
+-  logic [ADDR_WIDTH-1:0] addr_i_b;
+-
+-  modport master (
+-    // PORT A
+-    input clk_i_a,
+-    output we_i_a,
+-    output en_i_a,
+-    output data_i_a,
+-    input data_o_a,
+-    output addr_i_a,
+-    // PORT B
+-    input clk_i_b,
+-    output we_i_b,
+-    output en_i_b,
+-    output data_i_b,
+-    input data_o_b,
+-    output addr_i_b
+-  );
+-
+-  modport slave (
+-    // PORT A
+-    input clk_i_a,
+-    input we_i_a,
+-    input en_i_a,
+-    input data_i_a,
+-    output data_o_a,
+-    input addr_i_a,
+-    // PORT B
+-    input clk_i_b,
+-    input we_i_b,
+-    input en_i_b,
+-    input data_i_b,
+-    output data_o_b,
+-    input addr_i_b
+-  );
+-endinterface
++/* verilator lint_off DECLFILENAME */
++interface ram_interface #(
++  parameter DATA_WIDTH = 32,
++  parameter ADDR_WIDTH = 32
++)(
++  input logic clk_i_a,
++  input logic clk_i_b
++);
++  // PORT A
++  logic [3:0] we_i_a;
++  logic en_i_a;
++  logic [DATA_WIDTH-1:0] data_i_a;
++  logic [DATA_WIDTH-1:0] data_o_a;
++  logic [ADDR_WIDTH-1:0] addr_i_a;
++  // PORT B
++  logic [3:0] we_i_b;
++  logic en_i_b;
++  logic [DATA_WIDTH-1:0] data_i_b;
++  logic [DATA_WIDTH-1:0] data_o_b;
++  logic [ADDR_WIDTH-1:0] addr_i_b;
++
++  modport master (
++    // PORT A
++    input clk_i_a,
++    output we_i_a,
++    output en_i_a,
++    output data_i_a,
++    input data_o_a,
++    output addr_i_a,
++    // PORT B
++    input clk_i_b,
++    output we_i_b,
++    output en_i_b,
++    output data_i_b,
++    input data_o_b,
++    output addr_i_b
++  );
++
++  modport slave (
++    // PORT A
++    input clk_i_a,
++    input we_i_a,
++    input en_i_a,
++    input data_i_a,
++    output data_o_a,
++    input addr_i_a,
++    // PORT B
++    input clk_i_b,
++    input we_i_b,
++    input en_i_b,
++    input data_i_b,
++    output data_o_b,
++    input addr_i_b
++  );
++endinterface
+diff --git a/src/common/ram.sv b/src/common/ram.sv
+index 54513a5..4e726ff 100644
+--- a/src/common/ram.sv
++++ b/src/common/ram.sv
+@@ -1,38 +1,44 @@
+-`include "interfaces.sv"
+-/* verilator lint_off MULTIDRIVEN */
+-module ram #(
+-  parameter DATA_WIDTH = 32,
+-  parameter ADDR_WIDTH = 32,
+-  parameter DATA_DEPTH = 8192
+-)(
+-  ram_interface.slave ram_if
+-);
+-
+-  logic [DATA_WIDTH-1:0] data [0:$clog2(DATA_DEPTH)-1];
+-
+-  // NOTE: It's quite possible that R/W are exclusive and read should 
+-  // be in else block
+-  always_ff @(posedge ram_if.clk_i_a) begin
+-    if (ram_if.en_i_a) begin
+-      if (ram_if.we_i_a) begin
+-        data[ram_if.addr_i_a] <= ram_if.data_i_a;
+-      end
+-      ram_if.data_o_a <= data[ram_if.addr_i_a];
+-    end
+-  end
+-
+-  always_ff @(posedge ram_if.clk_i_b) begin
+-    if (ram_if.en_i_b) begin
+-      if (ram_if.we_i_b) begin
+-        data[ram_if.addr_i_b] <= ram_if.data_i_b;
+-      end
+-      ram_if.data_o_b <= data[ram_if.addr_i_b];
+-    end
+-  end
+-
+-  initial begin
+-    $readmemh("../../assets/instructions.bin", data);
+-  end
+-
+-endmodule
+-/* verilator lint_on MULTIDRIVEN */
++`include "interfaces.sv"
++/* verilator lint_off MULTIDRIVEN */
++module ram #(
++  parameter DATA_DEPTH = 8192
++)(
++  ram_interface.slave ram_if
++);
++  (* ram_style = "block" *)
++  logic [7:0] data0 [0:DATA_DEPTH-1];
++  logic [7:0] data1 [0:DATA_DEPTH-1];
++  logic [7:0] data2 [0:DATA_DEPTH-1];
++  logic [7:0] data3 [0:DATA_DEPTH-1];
++
++  // NOTE: It's quite possible that R/W are exclusive and read should 
++  // be in else block
++  always_ff @(posedge ram_if.clk_i_a) begin
++    if (ram_if.en_i_a) begin
++      if (ram_if.we_i_a[0]) data3[ram_if.addr_i_a >> 2] <= ram_if.data_i_a[31:24];
++      if (ram_if.we_i_a[1]) data2[ram_if.addr_i_a >> 2] <= ram_if.data_i_a[23:16];
++      if (ram_if.we_i_a[2]) data1[ram_if.addr_i_a >> 2] <= ram_if.data_i_a[15:8];
++      if (ram_if.we_i_a[3]) data0[ram_if.addr_i_a >> 2] <= ram_if.data_i_a[7:0];
++      ram_if.data_o_a <= { data3[ram_if.addr_i_a >> 2], data2[ram_if.addr_i_a >> 2], data1[ram_if.addr_i_a >> 2], data0[ram_if.addr_i_a >> 2] };
++    end
++  end
++
++  always_ff @(posedge ram_if.clk_i_b) begin
++    if (ram_if.en_i_b) begin
++      if (ram_if.we_i_b[0]) data3[ram_if.addr_i_b >> 2] <= ram_if.data_i_b[31:24];
++      if (ram_if.we_i_b[1]) data2[ram_if.addr_i_b >> 2] <= ram_if.data_i_b[23:16];
++      if (ram_if.we_i_b[2]) data1[ram_if.addr_i_b >> 2] <= ram_if.data_i_b[15:8];
++      if (ram_if.we_i_b[3]) data0[ram_if.addr_i_b >> 2] <= ram_if.data_i_b[7:0];
++      ram_if.data_o_b <= { data3[ram_if.addr_i_b >> 2], data2[ram_if.addr_i_b >> 2], data1[ram_if.addr_i_b >> 2], data0[ram_if.addr_i_b >> 2] };
++    end
++  end
++
++  initial begin
++    $readmemh("../../assets/rand0.bin", data0);
++    $readmemh("../../assets/rand1.bin", data1);
++    $readmemh("../../assets/rand2.bin", data2);
++    $readmemh("../../assets/rand3.bin", data3);
++  end
++
++endmodule
++/* verilator lint_on MULTIDRIVEN */
+diff --git a/src/decoder.sv b/src/decoder.sv
+deleted file mode 100644
+index 198a59e..0000000
+--- a/src/decoder.sv
++++ /dev/null
+@@ -1,81 +0,0 @@
+-`include "common/constants.sv"
+-`include "common/functions.sv"
+-
+-module decoder (
+-  input logic [31:0] instruction_i,
+-
+-  output logic [31:0] immediate_o,
+-  output logic [4:0] rs1_o,
+-  output logic rs1_en_o,
+-  output logic [4:0] rs2_o,
+-  output logic rs2_en_o,
+-  output logic [4:0] rd_o,
+-  output logic [6:0] opcode_o,
+-  output logic [3:0] funct3,
+-  output logic [6:0] funct7,
+-
+-  output logic valid_o,
+-  output logic jal_o,
+-  output logic reg2mem_o,
+-  output logic mem2reg_o,
+-  output logic alu_writeback_o,
+-  output logic syscall_o,
+-  output logic branch_o
+-);
+-
+-inst_type inst_type_local;
+-
+-assign jal_o = (opcode_o == `OPCODE_JAL);
+-assign reg2mem_o = (opcode_o == `OPCODE_STORE);
+-assign mem2reg_o = (opcode_o == `OPCODE_LOAD);
+-assign alu_writeback_o = (opcode == `OPCODE_JAL || opcode == `OPCODE_JALR ||
+-                          opcode == `OPCODE_LUI || opcode == `OPCODE_AUIPC ||
+-                          opcode == `OPCODE_ALUIMM || opcode == `OPCODE_ALUREG);
+-assign syscall_o = (opcode == `OPCODE_SYSTEM);
+-assign branch_o = (opcode == `OPCODE_BRANCH);
+-
+-assign opcode_o = instruction_i[6:0];
+-assign rd_o = instruction_i[11:7];
+-assign rs1_o = instruction_i[19:15];
+-assign rs2_o = instruction_i[24:20];
+-assign funct3_o = instruction_i[14:12];
+-assign funct7_o = instruction_i[31:25];
+-
+-always_comb begin
+-   case (opcode)
+-    `OPCODE_LUI: inst_type_local <= INST_U;
+-    `OPCODE_AUIPC: inst_type_local <= INST_U;
+-    `OPCODE_JAL: inst_type_local <= INST_J;
+-    `OPCODE_JALR: inst_type_local <= INST_I;
+-    `OPCODE_BRANCH: inst_type_local <= INST_B;
+-    `OPCODE_LOAD: inst_type_local <= INST_I;
+-    `OPCODE_STORE: inst_type_local <= INST_S;
+-    `OPCODE_ALUIMM: inst_type_local <= INST_I;
+-    `OPCODE_ALUREG: inst_type_local <= INST_R;
+-    `OPCODE_SYSTEM: inst_type_local <= INST_I;
+-    default: valid_o <= 0; 
+-  endcase  
+-end
+-
+-always_comb begin
+-  case (inst_type_local)
+-    `INST_I: imm_o <= { {21{instruction_i[31]}}, instruction_i[30:21], instruction_i[20] };
+-    `INST_S: imm_o <= { {21{instruction_i[31]}}, instruction_i[30:25], instruction_i[11:7] };
+-    `INST_B: imm_o <= { {20{instruction_i[31]}}, instruction_i[7], instruction_i[30:25], instruction_i[11:8], 1'b0 };
+-    `INST_U: imm_o <= { instruction_i[31:12], 12'b0 };
+-    `INST_J: imm_o <= { {12{instruction_i[31]}}, instruction_i[19:12], instruction_i[20], instruction_i[30:21], 1'b0 };
+-    default: imm_o <= 0;
+-  endcase
+-end
+-
+-always_comb begin
+-  case (inst_type_local)
+-    `INST_R: {rs1_en_o, rs2_en_o} <= 2'b11;
+-    `INST_I: {rs1_en_o, rs2_en_o} <= 2'b01;
+-    `INST_S: {rs1_en_o, rs2_en_o} <= 2'b11;
+-    `INST_B: {rs1_en_o, rs2_en_o} <= 2'b11;
+-    default: {rs1_en_o, rs2_en_o} <= 2'b00; 
+-  endcase
+-end
+-
+-endmodule
+diff --git a/src/fetch.sv b/src/fetch.sv
+index 11dcc18..034d4a0 100644
+--- a/src/fetch.sv
++++ b/src/fetch.sv
+@@ -1,53 +1,39 @@
+-`include "common/interfaces.sv"
+-
+-typedef enum logic[1:0] {STATE_INIT=0, STATE_NEW_PC=1, STATE_READY=2} fetch_state;
+-
+-module fetch #(
+-  parameter XLEN = 32
+-)(
+-  input logic clk_i,
+-  // Branch 
+-  input logic branch_taken_en_i,
+-  input logic [XLEN-1:0] next_pc_i,
+-  // Skid buffer
+-  output logic valid_o,
+-  output logic [XLEN-1:0] instruction,
+-  input logic ready_i,
+-  // BRAM Interface
+-  ram_interface.master ram_if
+-);
+-  logic [XLEN-1:0] pc = 0;
+-  fetch_state state = STATE_INIT;
+-
+-  assign ram_if.en_i_a = 1;
+-  assign ram_if.addr_i_a = pc;
+-  assign instruction = ram_if.data_o_a;
+-  assign valid_o = state == STATE_READY;
+-
+-  // NOTE: Not handled case: NEW_PC + !READY_I it may lost one instruction
+-  always_ff @(posedge clk_i) begin
+-    case (state)
+-      STATE_INIT: begin
+-        state <= STATE_READY;
+-      end
+-      STATE_READY: begin
+-        if (branch_taken_en_i) begin
+-          state <= STATE_NEW_PC;
+-        end
+-      end
+-      STATE_NEW_PC: begin
+-        state <= STATE_READY;
+-      end
+-      default: state <= STATE_INIT;
+-    endcase
+-  end
+-
+-  always_ff @(posedge clk_i) begin
+-    if (branch_taken_en_i) begin
+-      pc <= next_pc_i;
+-    end else if (ready_i) begin
+-      pc <= pc + 4;
+-    end
+-  end 
+-
+-endmodule
++`include "common/interfaces.sv"
++
++typedef enum logic {STATE_INIT=0, STATE_READY=1} fetch_state;
++
++module fetch(
++  input logic clk_i,
++  // Branch
++  input logic [31:0] pc_i,
++  // Skid buffer
++  output logic valid_o,
++  output logic [31:0] instruction_o,
++  output logic [31:0] pc_o,
++  // BRAM Interface
++  ram_interface.master ram_if
++);
++  fetch_state state = STATE_INIT;
++  logic [1:0] init_counter = 0;
++  logic [31:0] fetched_pc;
++
++  assign ram_if.en_i_a = 1;
++  assign ram_if.addr_i_a = pc_i;
++  assign instruction_o = ram_if.data_o_a;
++  assign pc_o = fetched_pc;
++  assign valid_o = state == STATE_READY;
++
++  always_ff @(posedge clk_i) begin
++    case (state)
++      STATE_INIT: begin
++        state <= STATE_READY;
++        fetched_pc   <= pc_i;
++      end
++      STATE_READY: begin
++        fetched_pc   <= pc_i;
++      end
++      default: state <= STATE_INIT;
++    endcase
++  end
++
++endmodule
+diff --git a/src/issue.sv b/src/issue.sv
+deleted file mode 100644
+index 4299872..0000000
+--- a/src/issue.sv
++++ /dev/null
+@@ -1,122 +0,0 @@
+-`include "common/constants.sv"
+-`include "common/functions.sv"
+-
+-module decoder #(
+-  XLEN = 32
+-)(
+-  // NOTE: Maybe registers bits should also be dependant on XLEN?
+-  input logic clk_i,
+-  input logic [XLEN-1:0] instruction_i,
+- 
+-  output unit_type unit_type_o;
+-  output logic [3:0] alu_op_o,
+-  output logic [3:0] lsu_op_o,
+-  output logic [3:0] bru_op_o,
+-  output logic [3:0] system_op_o,
+-  
+-  output inst_type inst_type_o
+-  output logic [XLEN-1:0] immediate_o,
+-  output logic [4:0] rs1_o,
+-  output logic [4:0] rs2_o,
+-  output logic [4:0] rd_o,
+-);
+-
+-logic [6:0] opcode;
+-logic [4:0] rd;
+-logic [3:0] funct3;
+-logic [4:0] rs1;
+-logic [4:0] rs2;
+-logic [31:0] imm_i;
+-logic [31:0] imm_s;
+-logic [31:0] imm_b;
+-logic [31:0] imm_u;
+-logic [31:0] imm_j;
+-
+-assign opcode = instruction_i[6:0];
+-assign rd = instruction_i[11:7];
+-assign funct3 = instruction_i[14:12];
+-assign rs1 = instruction_i[19:15];
+-assign rs2 = instruction_i[24:20];
+-assign funct7 = instruction_i[31:25];
+-
+-assign imm_i = { {21{instruction_i[31]}}, instruction_i[30:21], instruction_i[20] };
+-assign imm_s = { {21{instruction_i[31]}}, instruction_i[30:25], instruction_i[11:7] };
+-assign imm_b = { {20{instruction_i[31]}}, instruction_i[7], instruction_i[30:25], instruction_i[11:8], 1'b0 };
+-assign imm_u = { instruction_i[31:12], 12'b0 };
+-assign imm_j = { {12{instruction_i[31]}}, instruction_i[19:12], instruction_i[20], instruction_i[30:21], 1'b0 };
+-
+-always_ff @(clk_i) begin
+-  alu_en_o <= 0;
+-  lsu_en_o <= 0;
+-  bu_en_o <= 0;
+-  system_en_o <= 0;
+-  case (opcode)
+-    `OPCODE_LUI: begin
+-      inst_type_o <= INST_U;
+-      unit_type_o <= ALU;
+-      rd_o <= rd;
+-      rs1_o <= 0;
+-      imm_o <= imm_u;
+-    end
+-    `OPCODE_AUIPC: begin
+-      inst_type_o <= INST_U;
+-      unit_type_o <= ALU;
+-      rd_o <= rd;
+-      rs1_o <= pc;
+-      imm_o <= imm_u;
+-    end
+-    `OPCODE_JAL: begin
+-      // J-Type
+-      // rd = pc + 4
+-      // pc = pc + offset
+-      inst_type_o <= INST_J;
+-      unit_type_o <= BRU;
+-    end
+-    `OPCODE_JALR: begin
+-      // I-Type
+-      // rd = pc + 4
+-      // pc = (rs1 + offset) ^ -2
+-      inst_type_o <= INST_I;
+-      unit_type_o <= BRU;
+-    end 
+-    `OPCODE_BRANCH: begin
+-      // B-Type
+-      inst_type_o <= INST_B;
+-      unit_type_o <= BRU;
+-    end
+-    `OPCODE_LOAD: begin
+-      // I-Type
+-      inst_type_o <= INST_I;
+-      unit_type_o <= LSU;
+-    end
+-    `OPCODE_STORE: begin
+-      // S-Type
+-      inst_type_o <= INST_S;
+-      unit_type_o <= LSU;
+-    end
+-    `OPCODE_ALUIMM: begin
+-      // I-Type
+-      inst_type_o <= INST_I;
+-      unit_type_o <= ALU;
+-    end
+-    `OPCODE_ALUREG: begin
+-      // R-Type
+-      inst_type_o <= INST_R;
+-      unit_type_o <= ALU;
+-    end
+-    `OPCODE_FENCE_PAUSE: begin
+-      // Custom-type?
+-      // NOTE: Change inst_type_o!!
+-      inst_type_o <= INST_U;
+-      unit_type_o <= SYSTEM;
+-    end
+-    `OPCODE_SYSTEM: begin
+-      // Custom-type?
+-      // NOTE: Change inst_type_o!!
+-      inst_type_o <= INST_U;
+-      unit_type_o <= SYSTEM;
+-    end
+-  endcase
+-end
+-  
+-endmodule
+diff --git a/src/top.sv b/src/top.sv
+index c467eb1..3eada53 100644
+--- a/src/top.sv
++++ b/src/top.sv
+@@ -1,34 +1,128 @@
+-/* verilator lint_off MODDUP */
+-`include "fetch.sv"
+-`include "common/ram.sv"
+-
+-module top #(
+-  parameter XLEN = 32
+-)(
+-  input wire clk_i,
+-  input wire n_rst,
+-  input branch_taken_en_i,
+-  input [XLEN-1:0] next_pc_i,
+-  input decode_ready
+-);
+-
+-  logic [31:0] instruction = 0;
+-  logic fetch_ready = 0;
+-
+-  ram_interface ram_if (clk_i, clk_i);
+-
+-  ram main_memory(
+-    .ram_if(ram_if.slave)
+-  );
+-
+-  fetch #(.XLEN(XLEN)) fetch(
+-    .clk_i(clk_i),
+-    .branch_taken_en_i(branch_taken_en_i),
+-    .next_pc_i(next_pc_i),
+-    .valid_o(fetch_ready),
+-    .instruction(instruction),
+-    .ready_i(decode_ready),
+-    .ram_if(ram_if.master)
+-  );
+-
+-endmodule
++/* verilator lint_off MODDUP */
++`include "fetch.sv"
++`include "controller.sv"
++`include "pipeline/if_id_stage.sv"
++`include "common/ram.sv"
++`include "common/multiplexers/mux2to1.sv"
++
++module top (
++  input wire clk_i,
++  input wire n_rst,
++
++  // FIXME: TEMP input
++  input logic alu_next_pc_en,
++  input logic [31:0] alu_next_pc,
++
++  // Decoder output signals
++  output logic [31:0] dec_imm,
++  output logic [4:0] dec_rs1,
++  output logic [4:0] dec_rs2,
++  output logic [4:0] dec_rd,
++  output logic [6:0] dec_opcode,
++  output logic [2:0] dec_funct3,
++  output logic [6:0] dec_funct7,
++  output logic dec_exception_en,
++  output exception_type dec_exception,
++  output logic dec_jal,
++  output logic dec_reg2mem,
++  output logic dec_mem2reg,
++  output logic dec_alu_wb,
++  output logic dec_syscall,
++  output logic dec_branch,
++  output logic dec_rs1_en,
++  output logic dec_rs2_en
++);
++
++  // =============================
++  // PC handling
++  // =============================
++  logic [31:0] pc = 32'b0;
++  logic [31:0] next_pc;
++  mux2to1 pc_mux(
++    .sel(alu_next_pc_en),
++    .a(pc + 32'd4),
++    .b(alu_next_pc),
++    .y(next_pc)
++  );
++
++  always_ff @(posedge clk_i)
++  begin
++      pc <= next_pc;
++  end
++
++  // =============================
++  // BRAM instatiation
++  // =============================
++  ram_interface ram_if (clk_i, clk_i);
++  ram main_memory(
++    .ram_if(ram_if.slave)
++  );
++  
++  // =============================
++  // IF_ID signals
++  // =============================
++  logic [31:0] if_id_instruction_i;
++  logic [31:0] if_id_pc_i;
++  logic if_id_valid_i;
++  logic [31:0] if_id_instruction_o;
++  logic [31:0] if_id_pc_o;
++
++
++  // =============================
++  // FIXME: const signals
++  // =============================
++  logic if_id_flush = 1'b0;
++  logic if_id_stall = 1'b0;
++
++  // =============================
++  // Fetch stage
++  // =============================
++  fetch fetch(
++    .clk_i(clk_i),
++    .pc_i(pc),
++    .instruction_o(if_id_instruction_i),
++    .pc_o (if_id_pc_i),
++    .ram_if(ram_if.master),
++    .valid_o(if_id_valid_i)
++  );
++
++  // =============================
++  // IF_ID pipeline registers
++  // =============================
++  if_id_stage if_id_stage (
++    .clk_i    (clk_i),
++    .n_rst    (n_rst),
++    .flush    (if_id_flush),
++    .stall    (if_id_stall),
++    .if_inst  (if_id_instruction_i),
++    .if_pc    (if_id_pc_i),
++    .if_valid (if_id_valid_i),
++    .id_inst  (if_id_instruction_o),
++    .id_pc    (if_id_pc_o)
++  );
++
++  // =============================
++  // Decode stage
++  // =============================
++  controller controller (
++    .instruction_i  (if_id_instruction_o),
++    .immediate_o    (dec_imm),
++    .rs1_o          (dec_rs1),
++    .rs1_en_o       (dec_rs1_en),
++    .rs2_o          (dec_rs2),
++    .rs2_en_o       (dec_rs2_en),
++    .rd_o           (dec_rd),
++    .opcode_o       (dec_opcode),
++    .funct3_o       (dec_funct3),
++    .funct7_o       (dec_funct7),
++    .exception_en_o (dec_exception_en),
++    .exception_o    (dec_exception),
++    .jal_o          (dec_jal),
++    .reg2mem_o      (dec_reg2mem),
++    .mem2reg_o      (dec_mem2reg),
++    .alu_writeback_o(dec_alu_wb),
++    .syscall_o      (dec_syscall),
++    .branch_o       (dec_branch)
++  );
++
++endmodule
+diff --git a/tb/alu/.gitignore b/tb/alu/.gitignore
+index ce7b7e6..f2c26e6 100644
+--- a/tb/alu/.gitignore
++++ b/tb/alu/.gitignore
+@@ -1,2 +1,2 @@
+-obj_dir/
+-waveform.vcd
++obj_dir/
++waveform.vcd
+diff --git a/tb/alu/Makefile b/tb/alu/Makefile
+index 11b9bca..b31ee21 100644
+--- a/tb/alu/Makefile
++++ b/tb/alu/Makefile
+@@ -1,44 +1,44 @@
+-MODULE=alu
+-SRCS=../../src
+-
+-.PHONY:sim
+-sim: waveform.vcd
+-
+-.PHONY:verilate
+-verilate: .stamp.verilate
+-
+-.PHONY:build
+-build: obj_dir/Valu
+-
+-.PHONY:waves
+-waves: waveform.vcd
+-	@echo
+-	@echo "### WAVES ###"
+-	gtkwave waveform.vcd
+-
+-waveform.vcd: ./obj_dir/V$(MODULE)
+-	@echo
+-	@echo "### SIMULATING ###"
+-	@./obj_dir/V$(MODULE)
+-
+-./obj_dir/V$(MODULE): .stamp.verilate
+-	@echo
+-	@echo "### BUILDING SIM ###"
+-	make -C obj_dir -f V$(MODULE).mk V$(MODULE)
+-
+-.stamp.verilate: $(SRCS)/$(MODULE).sv tb_$(MODULE).cpp
+-	@echo
+-	@echo "### VERILATING ###"
+-	verilator -Wall --trace -cc $(SRCS)/$(MODULE).sv -I$(SRCS) --exe tb_$(MODULE).cpp
+-	@touch .stamp.verilate
+-
+-.PHONY:lint
+-lint: $(MODULE).sv
+-	verilator --lint-only $(MODULE).sv
+-
+-.PHONY: clean
+-clean:
+-	rm -rf .stamp.*;
+-	rm -rf ./obj_dir
+-	rm -rf waveform.vcd
+-
++MODULE=alu
++SRCS=../../src
++
++.PHONY:sim
++sim: waveform.vcd
++
++.PHONY:verilate
++verilate: .stamp.verilate
++
++.PHONY:build
++build: obj_dir/Valu
++
++.PHONY:waves
++waves: waveform.vcd
++	@echo
++	@echo "### WAVES ###"
++	gtkwave waveform.vcd
++
++waveform.vcd: ./obj_dir/V$(MODULE)
++	@echo
++	@echo "### SIMULATING ###"
++	@./obj_dir/V$(MODULE)
++
++./obj_dir/V$(MODULE): .stamp.verilate
++	@echo
++	@echo "### BUILDING SIM ###"
++	make -C obj_dir -f V$(MODULE).mk V$(MODULE)
++
++.stamp.verilate: $(SRCS)/$(MODULE).sv tb_$(MODULE).cpp
++	@echo
++	@echo "### VERILATING ###"
++	verilator -Wall --trace -cc $(SRCS)/$(MODULE).sv -I$(SRCS) --exe tb_$(MODULE).cpp
++	@touch .stamp.verilate
++
++.PHONY:lint
++lint: $(MODULE).sv
++	verilator --lint-only $(MODULE).sv
++
++.PHONY: clean
++clean:
++	rm -rf .stamp.*;
++	rm -rf ./obj_dir
++	rm -rf waveform.vcd
++
+diff --git a/tb/alu/tb_alu.cpp b/tb/alu/tb_alu.cpp
+index 1dcb697..4703827 100644
+--- a/tb/alu/tb_alu.cpp
++++ b/tb/alu/tb_alu.cpp
+@@ -1,129 +1,129 @@
+-#include <stdlib.h>
+-#include <iostream>
+-#include <cstdlib>
+-#include <verilated.h>
+-#include <verilated_vcd_c.h>
+-#include "Valu.h"
+-#include <vector>
+-#include <stdint.h>
+-#include <random>
+-#include <exception>
+-#include <limits.h>
+-
+-typedef std::tuple<int32_t,int32_t,int32_t,int32_t> testcase;
+-
+-int random32bit() {
+-    std::random_device rd;
+-    std::mt19937 engine(rd());
+-    std::uniform_int_distribution<int> dist(0, (1 << 31) - 1);
+-
+-    return dist(engine);
+-}
+-
+-std::vector<int> availableOperations = {
+-  0b0000, //ALU_ADD
+-  0b0001, //ALU_SUB
+-  0b0010, //ALU_SLL
+-  0b0011, //ALU_SLT
+-  0b0100, //ALU_SLTU
+-  0b0101, //ALU_SEQ
+-  0b0110, //ALU_XOR
+-  0b0111, //ALU_SRL
+-  0b1000, //ALU_SRA
+-  0b1001, //ALU_OR
+-  0b1010  //ALU_AND
+-};
+-
+-static inline int32_t rotr32 (int32_t value, uint32_t shift)
+-{
+-  if (value < 0 && shift > 0) {
+-      int32_t signMask = (static_cast<int32_t>(-1)) << (std::numeric_limits<int32_t>::digits - shift);
+-      return (value >> shift) | signMask;
+-  }
+-  return value >> shift;
+-}
+-
+-int getResult(int op, int32_t a, int32_t b) {
+-  switch (op) {
+-    case 0b0000:
+-      return a + b;
+-    case 0b0001:
+-      return a - b;
+-    case 0b0010:
+-      return a << b;
+-    case 0b0011:
+-      return a < b;
+-    case 0b0100:
+-      return ((uint32_t)a) < ((uint32_t)b);
+-    case 0b0101:
+-      return a == b;
+-    case 0b0110:
+-      return a ^ b;
+-    case 0b0111:
+-      return a >> b;
+-    case 0b1000:
+-      return rotr32(a,b);
+-    case 0b1001:
+-      return a | b;
+-    case 0b1010:
+-      return a & b;
+-    default:
+-      throw new std::string("[ERROR] Invalid ALU operation");
+-      break;
+-  }
+-}
+-
+-std::vector<testcase> generateTestCases(int n) {
+-  std::vector<testcase> testCases;
+-  for (const int& op : availableOperations) {
+-    for (int i = 0; i < n; i++) {
+-      int a = random32bit();
+-      int b = random32bit();
+-      int result = getResult(op, a, b);
+-      testCases.push_back({op, a, b, result});
+-      testCases.push_back({0b1111, 0, 0, result});
+-    }
+-  }
+-
+-  return testCases;
+-}
+-
+-int main(int argc, char** argv, char** env) {
+-    std::vector<testcase> testcases = generateTestCases(10000);
+-    
+-    Valu *dut = new Valu;
+-    Verilated::traceEverOn(true);
+-    VerilatedVcdC *m_trace = new VerilatedVcdC;
+-    dut->trace(m_trace, 5);
+-    m_trace->open("waveform.vcd");
+-
+-    int fails = 0;
+-    uint64_t sim_time = 0;
+-    for (testcase tc : testcases) {
+-      dut->clk_i ^= 1;
+-      dut->operation = std::get<0>(tc);
+-      dut->operand_a = std::get<1>(tc);
+-      dut->operand_b = std::get<2>(tc);
+-      dut->eval();
+-      m_trace->dump(sim_time++);
+-
+-      uint32_t result = std::get<3>(tc);
+-      if (dut->result != result) {
+-        std::cout 
+-          << "[FAIL] op=" << std::get<0>(tc)
+-          << ", a=" << dut->operand_a
+-          << ", b=" << dut->operand_b 
+-          << ", result: " << dut->result 
+-          << ", expected: " << result << std::endl;
+-        fails++;
+-      }
+-    }
+-
+-    if (fails == 0) {
+-      std::cout << "[SUCCESS] All test passed!" << std::endl;
+-    }
+-
+-    m_trace->close();
+-    delete dut;
+-    exit(EXIT_SUCCESS);
+-}
++#include <stdlib.h>
++#include <iostream>
++#include <cstdlib>
++#include <verilated.h>
++#include <verilated_vcd_c.h>
++#include "Valu.h"
++#include <vector>
++#include <stdint.h>
++#include <random>
++#include <exception>
++#include <limits.h>
++
++typedef std::tuple<int32_t,int32_t,int32_t,int32_t> testcase;
++
++int random32bit() {
++    std::random_device rd;
++    std::mt19937 engine(rd());
++    std::uniform_int_distribution<int> dist(0, (1 << 31) - 1);
++
++    return dist(engine);
++}
++
++std::vector<int> availableOperations = {
++  0b0000, //ALU_ADD
++  0b0001, //ALU_SUB
++  0b0010, //ALU_SLL
++  0b0011, //ALU_SLT
++  0b0100, //ALU_SLTU
++  0b0101, //ALU_SEQ
++  0b0110, //ALU_XOR
++  0b0111, //ALU_SRL
++  0b1000, //ALU_SRA
++  0b1001, //ALU_OR
++  0b1010  //ALU_AND
++};
++
++static inline int32_t rotr32 (int32_t value, uint32_t shift)
++{
++  if (value < 0 && shift > 0) {
++      int32_t signMask = (static_cast<int32_t>(-1)) << (std::numeric_limits<int32_t>::digits - shift);
++      return (value >> shift) | signMask;
++  }
++  return value >> shift;
++}
++
++int getResult(int op, int32_t a, int32_t b) {
++  switch (op) {
++    case 0b0000:
++      return a + b;
++    case 0b0001:
++      return a - b;
++    case 0b0010:
++      return a << b;
++    case 0b0011:
++      return a < b;
++    case 0b0100:
++      return ((uint32_t)a) < ((uint32_t)b);
++    case 0b0101:
++      return a == b;
++    case 0b0110:
++      return a ^ b;
++    case 0b0111:
++      return a >> b;
++    case 0b1000:
++      return rotr32(a,b);
++    case 0b1001:
++      return a | b;
++    case 0b1010:
++      return a & b;
++    default:
++      throw new std::string("[ERROR] Invalid ALU operation");
++      break;
++  }
++}
++
++std::vector<testcase> generateTestCases(int n) {
++  std::vector<testcase> testCases;
++  for (const int& op : availableOperations) {
++    for (int i = 0; i < n; i++) {
++      int a = random32bit();
++      int b = random32bit();
++      int result = getResult(op, a, b);
++      testCases.push_back({op, a, b, result});
++      testCases.push_back({0b1111, 0, 0, result});
++    }
++  }
++
++  return testCases;
++}
++
++int main(int argc, char** argv, char** env) {
++    std::vector<testcase> testcases = generateTestCases(10000);
++    
++    Valu *dut = new Valu;
++    Verilated::traceEverOn(true);
++    VerilatedVcdC *m_trace = new VerilatedVcdC;
++    dut->trace(m_trace, 5);
++    m_trace->open("waveform.vcd");
++
++    int fails = 0;
++    uint64_t sim_time = 0;
++    for (testcase tc : testcases) {
++      dut->clk_i ^= 1;
++      dut->operation = std::get<0>(tc);
++      dut->operand_a = std::get<1>(tc);
++      dut->operand_b = std::get<2>(tc);
++      dut->eval();
++      m_trace->dump(sim_time++);
++
++      uint32_t result = std::get<3>(tc);
++      if (dut->result != result) {
++        std::cout 
++          << "[FAIL] op=" << std::get<0>(tc)
++          << ", a=" << dut->operand_a
++          << ", b=" << dut->operand_b 
++          << ", result: " << dut->result 
++          << ", expected: " << result << std::endl;
++        fails++;
++      }
++    }
++
++    if (fails == 0) {
++      std::cout << "[SUCCESS] All test passed!" << std::endl;
++    }
++
++    m_trace->close();
++    delete dut;
++    exit(EXIT_SUCCESS);
++}
+diff --git a/tb/ram/Makefile b/tb/ram/Makefile
+index 034dac1..a4584be 100644
+--- a/tb/ram/Makefile
++++ b/tb/ram/Makefile
+@@ -1,44 +1,45 @@
+-MODULE=ram
+-SRCS=../../src/common
+-
+-.PHONY:sim
+-sim: waveform.vcd
+-
+-.PHONY:verilate
+-verilate: .stamp.verilate
+-
+-.PHONY:build
+-build: obj_dir/Valu
+-
+-.PHONY:waves
+-waves: waveform.vcd
+-	@echo
+-	@echo "### WAVES ###"
+-	gtkwave waveform.vcd
+-
+-waveform.vcd: ./obj_dir/V$(MODULE)
+-	@echo
+-	@echo "### SIMULATING ###"
+-	@./obj_dir/V$(MODULE)
+-
+-./obj_dir/V$(MODULE): .stamp.verilate
+-	@echo
+-	@echo "### BUILDING SIM ###"
+-	make -C obj_dir -f V$(MODULE).mk V$(MODULE)
+-
+-.stamp.verilate: $(SRCS)/$(MODULE).sv tb_$(MODULE).cpp
+-	@echo
+-	@echo "### VERILATING ###"
+-	verilator --trace -cc $(SRCS)/$(MODULE).sv -I$(SRCS) --exe tb_$(MODULE).cpp
+-	@touch .stamp.verilate
+-
+-.PHONY:lint
+-lint: $(MODULE).sv
+-	verilator --lint-only $(MODULE).sv
+-
+-.PHONY: clean
+-clean:
+-	rm -rf .stamp.*;
+-	rm -rf ./obj_dir
+-	rm -rf waveform.vcd
+-
++MODULE=tb_ram
++SRCS=../../tb/ram
++INCLUDES=../../src/common
++
++.PHONY:sim
++sim: waveform.vcd
++
++.PHONY:verilate
++verilate: .stamp.verilate
++
++.PHONY:build
++build: obj_dir/Vram
++
++.PHONY:waves
++waves: waveform.vcd
++	@echo
++	@echo "### WAVES ###"
++	gtkwave waveform.vcd
++
++waveform.vcd: ./obj_dir/V$(MODULE)
++	@echo
++	@echo "### SIMULATING ###"
++	@./obj_dir/V$(MODULE)
++
++./obj_dir/V$(MODULE): .stamp.verilate
++	@echo
++	@echo "### BUILDING SIM ###"
++	make -C obj_dir -f V$(MODULE).mk V$(MODULE)
++
++.stamp.verilate: $(SRCS)/$(MODULE).sv $(MODULE).cpp
++	@echo
++	@echo "### VERILATING ###"
++	verilator --trace -cc $(SRCS)/$(MODULE).sv -I$(SRCS) +incdir+$(INCLUDES) --exe $(MODULE).cpp
++	@touch .stamp.verilate
++
++.PHONY:lint
++lint: $(MODULE).sv
++	verilator --lint-only $(MODULE).sv
++
++.PHONY: clean
++clean:
++	rm -rf .stamp.*;
++	rm -rf ./obj_dir
++	rm -rf waveform.vcd
++
+diff --git a/tb/ram/tb_ram.cpp b/tb/ram/tb_ram.cpp
+index c88c838..450fced 100644
+--- a/tb/ram/tb_ram.cpp
++++ b/tb/ram/tb_ram.cpp
+@@ -1,107 +1,146 @@
+-#include <stdlib.h>
+-#include <iostream>
+-#include <cstdlib>
+-#include <verilated.h>
+-#include <verilated_vcd_c.h>
+-#include "Vram.h"
+-#include <vector>
+-#include <stdint.h>
+-#include <random>
+-#include <exception>
+-#include <limits.h>
+-
+-int32_t read_a(Vram* dut, int32_t addr) {
+-  dut->en_i_a = 1;
+-  dut->addr_i_a = addr;
+-
+-  std::cout << "[READ_A] Address: 0x" << std::hex << addr << ", data: 0x" << std::hex << dut->data_o_a << std::endl;
+-  return dut->data_o_a;
+-}
+-
+-int32_t read_b(Vram* dut, int32_t addr) {
+-  dut->en_i_b = 1;
+-  dut->addr_i_b = addr;
+-
+-  std::cout << "[READ_B] Address: 0x" << std::hex << addr << ", data: 0x" << std::hex << dut->data_o_b << std::endl;
+-  return dut->data_o_b;
+-}
+-
+-void write_a(Vram* dut, int32_t addr, int32_t value) {
+-  dut->en_i_a = 1;
+-  dut->we_i_a = 1;
+-  dut->addr_i_a = addr;
+-  dut->data_i_a = value;
+-  std::cout << "[WRITE_A] Address: 0x" << std::hex << addr << ", data: 0x" << std::hex << value << std::endl;
+-}
+-
+-void write_b(Vram* dut, int32_t addr, int32_t value) {
+-  dut->en_i_b = 1;
+-  dut->we_i_b = 1;
+-  dut->addr_i_b = addr;
+-  dut->data_i_b = value;
+-  std::cout << "[WRITE_B] Address: 0x" << std::hex << addr << ", data: 0x" << std::hex << value << std::endl;
+-}
+-
+-void reset_inputs(Vram* dut) {
+-  dut->en_i_a = 0;
+-  dut->en_i_b = 0;
+-  dut->we_i_a = 0;
+-  dut->we_i_b = 0;
+-  dut->data_i_a = 0x00000000;
+-  dut->data_i_b = 0x00000000;
+-  dut->addr_i_a = 0x00000000;
+-  dut->addr_i_b = 0x00000000;
+-}
+-
+-
+-int main(int argc, char** argv, char** env) {
+-    Vram *dut = new Vram;
+-    Verilated::traceEverOn(true);
+-    VerilatedVcdC *m_trace = new VerilatedVcdC;
+-    dut->trace(m_trace, 5);
+-    m_trace->open("waveform.vcd");
+-
+-    uint64_t sim_time = 0;
+-    // TEST1
+-    dut->clk_i_a ^= 1;
+-    dut->clk_i_b ^= 1;
+-    read_a(dut, 0x00000000);
+-    read_b(dut, 0x00000001);
+-    dut->eval();
+-    m_trace->dump(sim_time++);
+-    dut->clk_i_a ^= 1;
+-    dut->clk_i_b ^= 1;
+-    dut->eval();
+-    m_trace->dump(sim_time++);
+-    reset_inputs(dut);
+-
+-    // TEST1
+-    dut->clk_i_a ^= 1;
+-    dut->clk_i_b ^= 1;
+-    write_a(dut, 0x00000000, 0x13377331);
+-    write_b(dut, 0x00000001, 0x13377331);
+-    dut->eval();
+-    m_trace->dump(sim_time++);
+-    dut->clk_i_a ^= 1;
+-    dut->clk_i_b ^= 1;
+-    dut->eval();
+-    m_trace->dump(sim_time++);
+-    reset_inputs(dut);
+-
+-    // TEST1
+-    dut->clk_i_a ^= 1;
+-    dut->clk_i_b ^= 1;
+-    read_a(dut, 0x00000000);
+-    read_b(dut, 0x00000001);
+-    dut->eval();
+-    m_trace->dump(sim_time++);
+-    dut->clk_i_a ^= 1;
+-    dut->clk_i_b ^= 1;
+-    dut->eval();
+-    m_trace->dump(sim_time++);
+-    reset_inputs(dut);
+-
+-    m_trace->close();
+-    delete dut;
+-    exit(EXIT_SUCCESS);
+-}
++#include <cstdlib>
++#include <iostream>
++#include <verilated.h>
++#include <verilated_vcd_c.h>
++#include "Vtb_ram.h"
++#include <cstdint>
++
++int32_t read_a(Vtb_ram* dut, int32_t addr) {
++  dut->en_i_a = 1;
++  dut->we_i_a = 0;
++  dut->addr_i_a = addr;
++  dut->eval();
++  int32_t data = dut->data_o_a;
++  std::cout << "[READ_A] Address: 0x" << std::hex << addr 
++            << " -> Data: 0x" << std::hex << data << std::endl;
++  return data;
++}
++
++int32_t read_b(Vtb_ram* dut, int32_t addr) {
++  dut->en_i_b = 1;
++  dut->we_i_b = 0;
++  dut->addr_i_b = addr;
++  dut->eval();
++  int32_t data = dut->data_o_b;
++  std::cout << "[READ_B] Address: 0x" << std::hex << addr 
++            << " -> Data: 0x" << std::hex << data << std::endl;
++  return data;
++}
++
++void write_a(Vtb_ram* dut, int32_t addr, int32_t value) {
++  dut->en_i_a = 1;
++  dut->we_i_a = 0xF;
++  dut->addr_i_a = addr;
++  dut->data_i_a = value;
++  std::cout << "[WRITE_A] Address: 0x" << std::hex << addr 
++            << " <- Data: 0x" << std::hex << value << std::endl;
++  dut->eval();
++}
++
++void write_b(Vtb_ram* dut, int32_t addr, int32_t value) {
++  dut->en_i_b = 1;
++  dut->we_i_b = 0xF;
++  dut->addr_i_b = addr;
++  dut->data_i_b = value;
++  std::cout << "[WRITE_B] Address: 0x" << std::hex << addr 
++            << " <- Data: 0x" << std::hex << value << std::endl;
++  dut->eval();
++}
++
++void reset_inputs(Vtb_ram* dut) {
++  dut->en_i_a = 0;
++  dut->en_i_b = 0;
++  dut->we_i_a = 0;
++  dut->we_i_b = 0;
++  dut->data_i_a = 0x00000000;
++  dut->data_i_b = 0x00000000;
++  dut->addr_i_a = 0x00000000;
++  dut->addr_i_b = 0x00000000;
++  dut->eval();
++}
++
++int main(int argc, char** argv) {
++  Verilated::commandArgs(argc, argv);
++  Vtb_ram* dut = new Vtb_ram;
++  Verilated::traceEverOn(true);
++  VerilatedVcdC* m_trace = new VerilatedVcdC;
++  dut->trace(m_trace, 5);
++  m_trace->open("waveform.vcd");
++  uint64_t sim_time = 0;
++  const int clk_period = 1;
++  auto tick = [&]() {
++    for (int i = 0; i < 4; i++) {
++      dut->clk_i ^= 1;
++      dut->eval();
++      m_trace->dump(sim_time);
++      sim_time += clk_period;
++    }
++  };
++  std::cout << "\n===== TEST 1: Port A Full Write/Read =====\n";
++  tick();
++  write_a(dut, 0x00, 0xAABBCCDD);
++  tick();
++  int32_t data_a = read_a(dut, 0x00);
++  if (data_a != 0xAABBCCDD) {
++    std::cerr << "Error: Port A - expected 0xAABBCCDD, got 0x" 
++              << std::hex << data_a << std::endl;
++    exit(EXIT_FAILURE);
++  } else {
++    std::cout << "Test Port A full write/read PASSED.\n";
++  }
++  reset_inputs(dut);
++  std::cout << "\n===== TEST 2: Port B Full Write/Read =====\n";
++  tick();
++  write_b(dut, 0x04, 0x11223344);
++  tick();
++  int32_t data_b = read_b(dut, 0x04);
++  if (data_b != 0x11223344) {
++    std::cerr << "Error: Port B - expected 0x11223344, got 0x" 
++              << std::hex << data_b << std::endl;
++    exit(EXIT_FAILURE);
++  } else {
++    std::cout << "Test Port B full write/read PASSED.\n";
++  }
++  reset_inputs(dut);
++  std::cout << "\n===== TEST 3: Port A Partial Write =====\n";
++  tick();
++  dut->en_i_a = 1;
++  dut->we_i_a = 1 << 0;
++  dut->addr_i_a = 0x08;
++  dut->data_i_a = 0xFF000000;
++  dut->eval();
++  tick();
++  int32_t data_a2 = read_a(dut, 0x08);
++  if (((data_a2 >> 24) & 0xFF) != 0xFF) {
++    std::cerr << "Error: Port A Partial Write - expected MSB 0xFF, got 0x" 
++              << std::hex << ((data_a2 >> 24) & 0xFF) << std::endl;
++    exit(EXIT_FAILURE);
++  } else {
++    std::cout << "Test Port A partial write PASSED.\n";
++  }
++  reset_inputs(dut);
++  std::cout << "\n===== TEST 4: Simultaneous Write/Read on Both Ports =====\n";
++  tick();
++  write_a(dut, 0x00, 0xDEADBEEF);
++  write_b(dut, 0x04, 0xCAFEBABE);
++  tick();
++  int32_t data_a3 = read_a(dut, 0x00);
++  int32_t data_b3 = read_b(dut, 0x04);
++  if (data_a3 != 0xDEADBEEF) {
++    std::cerr << "Error: Port A simultaneous test - expected 0xDEADBEEF, got 0x"
++              << std::hex << data_a3 << std::endl;
++    exit(EXIT_FAILURE);
++  }
++  if (data_b3 != 0xCAFEBABE) {
++    std::cerr << "Error: Port B simultaneous test - expected 0xCAFEBABE, got 0x"
++              << std::hex << data_b3 << std::endl;
++    exit(EXIT_FAILURE);
++  }
++  std::cout << "Simultaneous write/read test PASSED.\n";
++  reset_inputs(dut);
++  m_trace->close();
++  delete m_trace;
++  delete dut;
++  std::cout << "\nALL TESTS PASSED.\n";
++  exit(EXIT_SUCCESS);
++}
+diff --git a/tb/top/Makefile b/tb/top/Makefile
+index 2ee07cb..d9d0fbc 100644
+--- a/tb/top/Makefile
++++ b/tb/top/Makefile
+@@ -1,45 +1,45 @@
+-MODULE=top
+-INCLUDE=../../src/common
+-SRCS=../../src
+-
+-.PHONY:sim
+-sim: waveform.vcd
+-
+-.PHONY:verilate
+-verilate: .stamp.verilate
+-
+-.PHONY:build
+-build: obj_dir/Valu
+-
+-.PHONY:waves
+-waves: waveform.vcd
+-	@echo
+-	@echo "### WAVES ###"
+-	gtkwave waveform.vcd
+-
+-waveform.vcd: ./obj_dir/V$(MODULE)
+-	@echo
+-	@echo "### SIMULATING ###"
+-	@./obj_dir/V$(MODULE)
+-
+-./obj_dir/V$(MODULE): .stamp.verilate
+-	@echo
+-	@echo "### BUILDING SIM ###"
+-	make -C obj_dir -f V$(MODULE).mk V$(MODULE)
+-
+-.stamp.verilate: $(SRCS)/$(MODULE).sv tb_$(MODULE).cpp
+-	@echo
+-	@echo "### VERILATING ###"
+-	verilator -trace -cc $(SRCS)/$(MODULE).sv -I$(INCLUDE) -I$(SRCS) --exe tb_$(MODULE).cpp
+-	@touch .stamp.verilate
+-
+-.PHONY:lint
+-lint: $(MODULE).sv
+-	verilator --lint-only $(MODULE).sv
+-
+-.PHONY: clean
+-clean:
+-	rm -rf .stamp.*;
+-	rm -rf ./obj_dir
+-	rm -rf waveform.vcd
+-
++MODULE=top
++INCLUDE=../../src/common
++SRCS=../../src
++
++.PHONY:sim
++sim: waveform.vcd
++
++.PHONY:verilate
++verilate: .stamp.verilate
++
++.PHONY:build
++build: obj_dir/Vtop
++
++.PHONY:waves
++waves: waveform.vcd
++	@echo
++	@echo "### WAVES ###"
++	gtkwave waveform.vcd
++
++waveform.vcd: ./obj_dir/V$(MODULE)
++	@echo
++	@echo "### SIMULATING ###"
++	@./obj_dir/V$(MODULE)
++
++./obj_dir/V$(MODULE): .stamp.verilate
++	@echo
++	@echo "### BUILDING SIM ###"
++	make -C obj_dir -f V$(MODULE).mk V$(MODULE)
++
++.stamp.verilate: $(SRCS)/$(MODULE).sv tb_$(MODULE).cpp
++	@echo
++	@echo "### VERILATING ###"
++	verilator -trace -cc $(SRCS)/$(MODULE).sv -I$(INCLUDE) -I$(SRCS) --exe tb_$(MODULE).cpp
++	@touch .stamp.verilate
++
++.PHONY:lint
++lint: $(MODULE).sv
++	verilator --lint-only $(MODULE).sv
++
++.PHONY: clean
++clean:
++	rm -rf .stamp.*;
++	rm -rf ./obj_dir
++	rm -rf waveform.vcd
++
+diff --git a/tb/top/tb_top.cpp b/tb/top/tb_top.cpp
+index 615a204..006ebd8 100644
+--- a/tb/top/tb_top.cpp
++++ b/tb/top/tb_top.cpp
+@@ -1,89 +1,52 @@
+-#include <stdlib.h>
+-#include <iostream>
+-#include <cstdlib>
+-#include <verilated.h>
+-#include <verilated_vcd_c.h>
+-#include "Vtop.h"
+-#include <vector>
+-#include <stdint.h>
+-#include <random>
+-#include <exception>
+-#include <limits.h>
+-
+-#define MAX_TIME 500
+-
+-int main(int argc, char** argv, char** env) {
+-    Vtop *dut = new Vtop;
+-    Verilated::traceEverOn(true);
+-    VerilatedVcdC *m_trace = new VerilatedVcdC;
+-    dut->trace(m_trace, 5);
+-    m_trace->open("waveform.vcd");
+-
+-    int fails = 0;
+-    uint64_t sim_time = 0;
+-    dut->decode_ready = 1;
+-    // NORMAL RUN
+-    while (sim_time < MAX_TIME/5) {
+-      dut->clk_i ^= 1;
+-      dut->eval();
+-      m_trace->dump(sim_time++);
+-    }
+-   
+-    // NEW BRANCH
+-    dut->clk_i ^= 1;
+-    dut->branch_taken_en_i = 1;
+-    dut->next_pc_i = 0x00000000;
+-    dut->eval();
+-    m_trace->dump(sim_time++);
+-
+-    dut->clk_i ^= 1;
+-    dut->eval();
+-    m_trace->dump(sim_time++);
+-    dut->branch_taken_en_i = 0;
+-
+-    // CONTINUE WITH NEW PC
+-    while (sim_time < 2*MAX_TIME/5) {
+-      dut->clk_i ^= 1;
+-      dut->eval();
+-      m_trace->dump(sim_time++);
+-    }
+-   
+-    dut->decode_ready = 0;
+-    // CONTINUE WITHOUT READY
+-    while (sim_time < 3*MAX_TIME/5) {
+-      dut->clk_i ^= 1;
+-      dut->eval();
+-      m_trace->dump(sim_time++);
+-    }
+-
+-    dut->decode_ready = 1;
+-    // RESUME
+-    while (sim_time < 4*MAX_TIME/5) {
+-      dut->clk_i ^= 1;
+-      dut->eval();
+-      m_trace->dump(sim_time++);
+-    }
+-
+-    // NEW BRANCH BUT DECODER NOT READY
+-    dut->clk_i ^= 1;
+-    dut->decode_ready = 0;
+-    dut->branch_taken_en_i = 1;
+-    dut->next_pc_i = 0x00000000;
+-    dut->eval();
+-    m_trace->dump(sim_time++);
+-
+-    dut->clk_i ^= 1;
+-    dut->eval();
+-    m_trace->dump(sim_time++);
+-    dut->branch_taken_en_i = 0;
+-    // RESUME
+-    while (sim_time < MAX_TIME) {
+-      dut->clk_i ^= 1;
+-      dut->eval();
+-      m_trace->dump(sim_time++);
+-    }
+-
+-    m_trace->close();
+-    delete dut;
+-    exit(EXIT_SUCCESS);
+-}
++#include <stdlib.h>
++#include <iostream>
++#include <cstdlib>
++#include <verilated.h>
++#include <verilated_vcd_c.h>
++#include "Vtop.h"
++#include <vector>
++#include <stdint.h>
++#include <random>
++#include <exception>
++#include <limits.h>
++
++#define MAX_TIME 500
++int sim_time = 0;
++
++int main(int argc, char** argv, char** env) {
++    Vtop *dut = new Vtop;
++    Verilated::traceEverOn(true);
++    VerilatedVcdC *m_trace = new VerilatedVcdC;
++    dut->trace(m_trace, 5);
++    m_trace->open("waveform.vcd");
++
++    dut->n_rst = 1;
++
++    while (sim_time < MAX_TIME/2) {
++      dut->clk_i ^= 1;
++      dut->eval();
++      m_trace->dump(sim_time++);
++    }
++
++    dut->clk_i ^= 1;
++    dut->eval();
++    m_trace->dump(sim_time++);
++    
++    dut->clk_i ^= 1;
++    dut->alu_next_pc_en = 1;
++    dut->alu_next_pc = 0;
++    dut->eval();
++    m_trace->dump(sim_time++);
++
++    dut->alu_next_pc_en = 0;
++
++    while (sim_time < MAX_TIME) {
++      dut->clk_i ^= 1;
++      dut->eval();
++      m_trace->dump(sim_time++);
++    }
++
++    m_trace->close();
++    delete dut;
++    exit(EXIT_SUCCESS);
++}

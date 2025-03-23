@@ -1,5 +1,6 @@
-MODULE=ram
-SRCS=../../src/common
+MODULE=tb_ram
+SRCS=../../tb/ram
+INCLUDES=../../src/common
 
 .PHONY:sim
 sim: waveform.vcd
@@ -8,7 +9,7 @@ sim: waveform.vcd
 verilate: .stamp.verilate
 
 .PHONY:build
-build: obj_dir/Valu
+build: obj_dir/Vram
 
 .PHONY:waves
 waves: waveform.vcd
@@ -26,10 +27,10 @@ waveform.vcd: ./obj_dir/V$(MODULE)
 	@echo "### BUILDING SIM ###"
 	make -C obj_dir -f V$(MODULE).mk V$(MODULE)
 
-.stamp.verilate: $(SRCS)/$(MODULE).sv tb_$(MODULE).cpp
+.stamp.verilate: $(SRCS)/$(MODULE).sv $(MODULE).cpp
 	@echo
 	@echo "### VERILATING ###"
-	verilator --trace -cc $(SRCS)/$(MODULE).sv -I$(SRCS) --exe tb_$(MODULE).cpp
+	verilator --trace -cc $(SRCS)/$(MODULE).sv -I$(SRCS) +incdir+$(INCLUDES) --exe $(MODULE).cpp
 	@touch .stamp.verilate
 
 .PHONY:lint

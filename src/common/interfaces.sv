@@ -7,13 +7,13 @@ interface ram_interface #(
   input logic clk_i_b
 );
   // PORT A
-  logic we_i_a;
+  logic [3:0] we_i_a;
   logic en_i_a;
   logic [DATA_WIDTH-1:0] data_i_a;
   logic [DATA_WIDTH-1:0] data_o_a;
   logic [ADDR_WIDTH-1:0] addr_i_a;
   // PORT B
-  logic we_i_b;
+  logic [3:0] we_i_b;
   logic en_i_b;
   logic [DATA_WIDTH-1:0] data_i_b;
   logic [DATA_WIDTH-1:0] data_o_b;
