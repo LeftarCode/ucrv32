@@ -1,5 +1,4 @@
 MODULE=top
-INCLUDE=../../src/common
 SRCS=../../src
 
 .PHONY:sim
@@ -30,7 +29,7 @@ waveform.vcd: ./obj_dir/V$(MODULE)
 .stamp.verilate: $(SRCS)/$(MODULE).sv tb_$(MODULE).cpp
 	@echo
 	@echo "### VERILATING ###"
-	verilator -trace -cc $(SRCS)/$(MODULE).sv -I$(INCLUDE) -I$(SRCS) --exe tb_$(MODULE).cpp
+	verilator -trace -cc $(SRCS)/$(MODULE).sv -I$(SRCS) --exe tb_$(MODULE).cpp
 	@touch .stamp.verilate
 
 .PHONY:lint

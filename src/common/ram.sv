@@ -1,4 +1,4 @@
-`include "interfaces.sv"
+`include "common/interfaces.sv"
 /* verilator lint_off MULTIDRIVEN */
 module ram #(
   parameter DATA_DEPTH = 8192

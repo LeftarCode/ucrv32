@@ -1,5 +1,7 @@
 // RV32E Instructions
 `define ZERO 32'b0
+`define ENABLE 1'b1
+`define DISABLE 1'b1
 
 //// RV32E opcodes
 `define OPCODE_LUI 7'b0110111
@@ -32,15 +34,6 @@
 `define FUNCT3_SH 3'b001
 `define FUNCT3_SW 3'b010
 
-`define FUNCT3_ADDI 3'b000
-`define FUNCT3_SLTI 3'b010
-`define FUNCT3_SLTIU 3'b011
-`define FUNCT3_XORI 3'b100
-`define FUNCT3_ORI 3'b110
-`define FUNCT3_ANDI 3'b111
-`define FUNCT3_SLLI 3'b001
-`define FUNCT3_SRLI_SRAI 3'b101
-
 `define FUNCT3_ADD_SUB 3'b000
 `define FUNCT3_SLL 3'b001
 `define FUNCT3_SLT 3'b010
@@ -53,24 +46,8 @@
 `define FUNCT3_SYSTEM 3'b000
 
 //// RV32E funct7
-`define FUNCT7_SRLI 7'b0000000
-`define FUNCT7_SRAI 7'b0100000
-`define FUNCT7_ADD 7'b0000000
-`define FUNCT7_SUB 7'b0100000
 `define FUNCT7_SRL 7'b0000000
 `define FUNCT7_SRA 7'b0100000
+`define FUNCT7_ADD 7'b0000000
+`define FUNCT7_SUB 7'b0100000
 
-// ALU operations
-`define ALU_ADD 4'b0000 
-`define ALU_SUB 4'b0001
-`define ALU_SLL 4'b0010
-`define ALU_SLT 4'b0011
-`define ALU_SLTU 4'b0100
-`define ALU_SEQ 4'b0101
-`define ALU_XOR 4'b0110
-`define ALU_SRL 4'b0111
-`define ALU_SRA 4'b1000
-`define ALU_OR 4'b1001
-`define ALU_AND 4'b1010
-
-// LSU operations

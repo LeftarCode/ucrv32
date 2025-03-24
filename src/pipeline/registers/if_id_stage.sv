@@ -4,7 +4,7 @@ module if_id_stage (
   input logic flush,
   input logic stall,
 
-  input  logic if_valid,
+  input logic if_valid,
   input logic [31:0] if_inst,
   input logic [31:0] if_pc,
 
