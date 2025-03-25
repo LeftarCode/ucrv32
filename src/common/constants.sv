@@ -1,7 +1,7 @@
 // RV32E Instructions
 `define ZERO 32'b0
 `define ENABLE 1'b1
-`define DISABLE 1'b1
+`define DISABLE 1'b0
 
 //// RV32E opcodes
 `define OPCODE_LUI 7'b0110111
@@ -42,6 +42,15 @@
 `define FUNCT3_SRL_SRA 3'b101
 `define FUNCT3_OR 3'b110
 `define FUNCT3_AND 3'b111
+
+`define FUNCT3_ADDI 3'b000
+`define FUNCT3_SLTI 3'b010
+`define FUNCT3_SLTIU 3'b011
+`define FUNCT3_XORI 3'b100
+`define FUNCT3_ORI 3'b110
+`define FUNCT3_ANDI 3'b111
+`define FUNCT3_SLLI 3'b001
+`define FUNCT3_SRLI_SRAI 3'b101
 
 `define FUNCT3_SYSTEM 3'b000
 

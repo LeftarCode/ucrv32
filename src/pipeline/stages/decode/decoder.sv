@@ -29,7 +29,11 @@ always_comb begin
     `OPCODE_BRANCH: instruction_type_o = INST_B;
     `OPCODE_LOAD: instruction_type_o = INST_I;
     `OPCODE_STORE: instruction_type_o = INST_S;
-    `OPCODE_ALUIMM: instruction_type_o = INST_I;
+    `OPCODE_ALUIMM:
+      case(funct3_o)
+        `FUNCT3_SLLI, `FUNCT3_SRLI_SRAI: instruction_type_o = INST_R;
+        default: instruction_type_o = INST_I;
+      endcase
     `OPCODE_ALUREG: instruction_type_o = INST_R;
     `OPCODE_SYSTEM: instruction_type_o = INST_I;
     default: instruction_type_o = INST_UNKNOWN;

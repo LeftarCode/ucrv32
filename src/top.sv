@@ -4,9 +4,12 @@
 `include "pipeline/stages/fetch/fetch.sv"
 `include "pipeline/stages/decode/decode.sv"
 `include "pipeline/stages/execute/execute.sv"
+`include "pipeline/stages/memory/memory.sv"
 `include "pipeline/registers/if_id_stage.sv"
 `include "pipeline/registers/id_ex_stage.sv"
+`include "pipeline/registers/ex_mem_stage.sv"
 `include "common/ram.sv"
+`include "common/data_ram.sv"
 `include "common/multiplexers/mux2to1.sv"
 
 module top (
@@ -17,16 +20,12 @@ module top (
   input logic alu_next_pc_en,
   input logic [31:0] alu_next_pc,
   
-  output logic alu_zero_o,
-  output logic [31:0] alu_result_o,
-  output logic [31:0] pc_o,
-  output logic [31:0] pc_4_o,
-  output logic [31:0] pc_imm_o,
+  output logic [4:0] rd_o,
   output logic memwrite_en_o,
-  output logic memread_en_o,
   output logic wb_en_o,
-  output wb_source_type wb_src_o,
-  output wb_pc_source_type wb_pc_src_o
+  output logic [31:0] wb_value_o,
+  output logic [31:0] next_pc_o,
+  output logic branch_taken_o
 );
 
   // =============================
@@ -49,9 +48,14 @@ module top (
   // =============================
   // BRAM instatiation
   // =============================
-  ram_interface ram_if (clk_i, clk_i);
-  ram main_memory(
-    .ram_if(ram_if.slave)
+  ram_interface iram_if (clk_i, clk_i);
+  ram instruction_memory(
+    .ram_if(iram_if.slave)
+  );
+
+  ram_interface dram_if (clk_i, clk_i);
+  data_ram data_memory(
+    .ram_if(dram_if.slave)
   );
   
   // =============================
@@ -67,11 +71,14 @@ module top (
   // ID_EX signals
   // =============================
   logic [31:0] id_ex_pc_i;
+  logic [4:0] id_ex_rd_i;
   ex_func id_ex_func_i;
   rs1_sel id_ex_rs1_sel_i;
   rs2_sel id_ex_rs2_sel_i;
   logic id_ex_memwrite_en_i;
   logic id_ex_memread_en_i;
+  logic id_ex_branch_i;
+  logic id_ex_jmp_i;
   logic id_ex_wb_en_i;
   wb_source_type id_ex_wb_src_i;
   wb_pc_source_type id_ex_wb_pc_src_i;
@@ -80,11 +87,14 @@ module top (
   logic [31:0] id_ex_immediate_i;
 
   logic [31:0] id_ex_pc_o;
+  logic [4:0] id_ex_rd_o;
   ex_func id_ex_func_o;
   rs1_sel id_ex_rs1_sel_o;
   rs2_sel id_ex_rs2_sel_o;
   logic id_ex_memwrite_en_o;
   logic id_ex_memread_en_o;
+  logic id_ex_branch_o;
+  logic id_ex_jmp_o;
   logic id_ex_wb_en_o;
   wb_source_type id_ex_wb_src_o;
   wb_pc_source_type id_ex_wb_pc_src_o;
@@ -92,6 +102,36 @@ module top (
   logic [31:0] id_ex_rs2_data_o;
   logic [31:0] id_ex_immediate_o;
 
+  // =============================
+  // EX_MEM signals
+  // =============================
+  logic [4:0] ex_mem_rd_i;
+  logic ex_mem_alu_zero_i;
+  logic [31:0] ex_mem_alu_result_i;
+  logic [31:0] ex_mem_pc_i;
+  logic [31:0] ex_mem_pc_4_i;
+  logic [31:0] ex_mem_pc_imm_i;
+  logic ex_mem_memwrite_en_i;
+  logic ex_mem_memread_en_i;
+  logic ex_mem_branch_i;
+  logic ex_mem_jmp_i;
+  logic ex_mem_wb_en_i;
+  wb_source_type ex_mem_wb_src_i;
+  wb_pc_source_type ex_mem_wb_pc_src_i;
+
+  logic [4:0] ex_mem_rd_o;
+  logic ex_mem_alu_zero_o;
+  logic [31:0] ex_mem_alu_result_o;
+  logic [31:0] ex_mem_pc_o;
+  logic [31:0] ex_mem_pc_4_o;
+  logic [31:0] ex_mem_pc_omm_o;
+  logic ex_mem_memwrite_en_o;
+  logic ex_mem_memread_en_o;
+  logic ex_mem_branch_o;
+  logic ex_mem_jmp_o;
+  logic ex_mem_wb_en_o;
+  wb_source_type ex_mem_wb_src_o;
+  wb_pc_source_type ex_mem_wb_pc_src_o;
 
   // =============================
   // FIXME: const signals
@@ -100,6 +140,8 @@ module top (
   logic if_id_stall = 1'b0;
   logic id_ex_flush = 1'b0;
   logic id_ex_stall = 1'b0;
+  logic ex_mem_flush = 1'b0;
+  logic ex_mem_stall = 1'b0;
 
   // =============================
   // Fetch stage
@@ -109,7 +151,7 @@ module top (
     .pc_i(pc),
     .instruction_o(if_id_instruction_i),
     .pc_o (if_id_pc_i),
-    .ram_if(ram_if.master),
+    .ram_if(iram_if.master),
     .valid_o(if_id_valid_i)
   );
 
@@ -138,11 +180,14 @@ module top (
     .pc_i(if_id_pc_o),
     
     .pc_o(id_ex_pc_i),
+    .rd_o(id_ex_rd_i),
     .ex_func_o(id_ex_func_i),
     .rs1_sel_o(id_ex_rs1_sel_i),
     .rs2_sel_o(id_ex_rs2_sel_i),
     .memwrite_en_o(id_ex_memwrite_en_i),
     .memread_en_o(id_ex_memread_en_i),
+    .branch_o(id_ex_branch_i),
+    .jmp_o(id_ex_jmp_i),
     .wb_en_o(id_ex_wb_en_i),
     .wb_src_o(id_ex_wb_src_i),
     .wb_pc_src_o(id_ex_wb_pc_src_i),
@@ -161,11 +206,14 @@ module top (
     .stall(id_ex_stall),
     
     .id_pc_i(id_ex_pc_i),
+    .id_rd_i(id_ex_rd_i),
     .id_ex_func_i(id_ex_func_i),
     .id_rs1_sel_i(id_ex_rs1_sel_i),
     .id_rs2_sel_i(id_ex_rs2_sel_i),
     .id_memwrite_en_i(id_ex_memwrite_en_i),
     .id_memread_en_i(id_ex_memread_en_i),
+    .id_branch_i(id_ex_branch_i),
+    .id_jmp_i(id_ex_jmp_i),
     .id_wb_en_i(id_ex_wb_en_i),
     .id_wb_src_i(id_ex_wb_src_i),
     .id_wb_pc_src_i(id_ex_wb_pc_src_i),
@@ -174,11 +222,14 @@ module top (
     .id_immediate_i(id_ex_immediate_i),
 
     .ex_pc_o(id_ex_pc_o),
+    .ex_rd_o(id_ex_rd_o),
     .ex_func_o(id_ex_func_o),
     .ex_rs1_sel_o(id_ex_rs1_sel_o),
     .ex_rs2_sel_o(id_ex_rs2_sel_o),
     .ex_memwrite_en_o(id_ex_memwrite_en_o),
     .ex_memread_en_o(id_ex_memread_en_o),
+    .ex_branch_o(id_ex_branch_o),
+    .ex_jmp_o(id_ex_jmp_o),
     .ex_wb_en_o(id_ex_wb_en_o),
     .ex_wb_src_o(id_ex_wb_src_o),
     .ex_wb_pc_src_o(id_ex_wb_pc_src_o),
@@ -195,11 +246,14 @@ module top (
     .n_rst(n_rst),
     
     .pc_i(id_ex_pc_o),
+    .rd_i(id_ex_rd_o),
     .ex_func_i(id_ex_func_o),
     .rs1_sel_i(id_ex_rs1_sel_o),
     .rs2_sel_i(id_ex_rs2_sel_o),
     .memwrite_en_i(id_ex_memwrite_en_o),
     .memread_en_i(id_ex_memread_en_o),
+    .branch_i(id_ex_branch_o),
+    .jmp_i(id_ex_jmp_o),
     .wb_en_i(id_ex_wb_en_o),
     .wb_src_i(id_ex_wb_src_o),
     .wb_pc_src_i(id_ex_wb_pc_src_o),
@@ -207,16 +261,84 @@ module top (
     .rs2_data_i(id_ex_rs2_data_o),
     .immediate_i(id_ex_immediate_o),
     
-    .alu_zero_o(alu_zero_o),
-    .alu_result_o(alu_result_o),
-    .pc_o(pc_o),
-    .pc_4_o(pc_4_o),
-    .pc_imm_o(pc_imm_o),
+    .rd_o(ex_mem_rd_i),
+    .alu_zero_o(ex_mem_alu_zero_i),
+    .alu_result_o(ex_mem_alu_result_i),
+    .pc_o(ex_mem_pc_i),
+    .pc_4_o(ex_mem_pc_4_i),
+    .pc_imm_o(ex_mem_pc_imm_i),
+    .memwrite_en_o(ex_mem_memwrite_en_i),
+    .memread_en_o(ex_mem_memread_en_i),
+    .branch_o(ex_mem_branch_i),
+    .jmp_o(ex_mem_jmp_i),
+    .wb_en_o(ex_mem_wb_en_i),
+    .wb_src_o(ex_mem_wb_src_i),
+    .wb_pc_src_o(ex_mem_wb_pc_src_i)
+  );
+
+  // =============================
+  // EX_MEM pipeline registers
+  // =============================
+  ex_mem_stage ex_mem_stage (
+    .clk_i(clk_i),
+    .n_rst(n_rst),
+    .stall(ex_mem_stall),
+    .flush(ex_mem_flush),
+
+    .ex_rd_i(ex_mem_rd_i),
+    .ex_alu_zero_i(ex_mem_alu_zero_i),
+    .ex_alu_result_i(ex_mem_alu_result_i),
+    .ex_pc_i(ex_mem_pc_i),
+    .ex_pc_4_i(ex_mem_pc_4_i),
+    .ex_pc_imm_i(ex_mem_pc_imm_i),
+    .ex_memwrite_en_i(ex_mem_memwrite_en_i),
+    .ex_memread_en_i(ex_mem_memread_en_i),
+    .ex_branch_i(ex_mem_branch_i),
+    .ex_jmp_i(ex_mem_jmp_i),
+    .ex_wb_en_i(ex_mem_wb_en_i),
+    .ex_wb_src_i(ex_mem_wb_src_i),
+    .ex_wb_pc_src_i(ex_mem_wb_pc_src_i),
+
+    .mem_rd_o(ex_mem_rd_o),
+    .mem_alu_zero_o(ex_mem_alu_zero_o),
+    .mem_alu_result_o(ex_mem_alu_result_o),
+    .mem_pc_o(ex_mem_pc_o),
+    .mem_pc_4_o(ex_mem_pc_4_o),
+    .mem_pc_imm_o(ex_mem_pc_omm_o),
+    .mem_memwrite_en_o(ex_mem_memwrite_en_o),
+    .mem_memread_en_o(ex_mem_memread_en_o),
+    .mem_branch_o(ex_mem_branch_o),
+    .mem_jmp_o(ex_mem_jmp_o),
+    .mem_wb_en_o(ex_mem_wb_en_o),
+    .mem_wb_src_o(ex_mem_wb_src_o),
+    .mem_wb_pc_src_o(ex_mem_wb_pc_src_o)
+  );
+
+  memory memory (
+    .clk_i(clk_i),
+    .n_rst(n_rst),
+
+    .rd_i(ex_mem_rd_o),
+    .alu_zero_i(ex_mem_alu_zero_o),
+    .alu_result_i(ex_mem_alu_result_o),
+    .pc_i(ex_mem_pc_o),
+    .pc_4_i(ex_mem_pc_4_o),
+    .pc_imm_i(ex_mem_pc_omm_o),
+    .memwrite_en_i(ex_mem_memwrite_en_o),
+    .memread_en_i(ex_mem_memread_en_o),
+    .branch_i(ex_mem_branch_o),
+    .jmp_i(ex_mem_jmp_o),
+    .wb_en_i(ex_mem_wb_en_o),
+    .wb_src_i(ex_mem_wb_src_o),
+    .wb_pc_src_i(ex_mem_wb_pc_src_o),
+
+    .rd_o(rd_o),
     .memwrite_en_o(memwrite_en_o),
-    .memread_en_o(memread_en_o),
     .wb_en_o(wb_en_o),
-    .wb_src_o(wb_src_o),
-    .wb_pc_src_o(wb_pc_src_o)
+    .wb_value_o(wb_value_o),
+    .next_pc_o(next_pc_o),
+    .branch_taken_o(branch_taken_o),
+    .ram_if(dram_if.master)
   );
 
 endmodule

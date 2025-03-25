@@ -10,11 +10,14 @@ module decode (
   input logic [31:0] pc_i,
 
   output logic [31:0] pc_o,
+  output logic [4:0] rd_o,
   output ex_func ex_func_o,
   output rs1_sel rs1_sel_o,
   output rs2_sel rs2_sel_o,
   output logic memwrite_en_o,
   output logic memread_en_o,
+  output logic branch_o,
+  output logic jmp_o,
   output logic wb_en_o,
   output wb_source_type wb_src_o,
   output wb_pc_source_type wb_pc_src_o,
@@ -23,7 +26,6 @@ module decode (
   output logic [31:0] immediate_o
 );
 
-assign pc_o = pc_i;
 // =============================
 // Decoder signals
 // =============================
@@ -40,6 +42,9 @@ logic [6:0] decoder_funct7_o;
 logic [4:0] TEMP_rd_addr_i;
 logic [31:0] TEMP_wd_i;
 logic TEMP_we_i;
+
+assign pc_o = pc_i;
+assign rd_o = decoder_rd_o;
 
 decoder decoder(
   .instruction_i(instruction_i),
@@ -81,6 +86,8 @@ controller controller(
   .memwrite_en_o(memwrite_en_o),
   .memread_en_o(memread_en_o),
   .wb_en_o(wb_en_o),
+  .branch_o(branch_o),
+  .jmp_o(jmp_o),
   .wb_src_o(wb_src_o),
   .wb_pc_src_o(wb_pc_src_o)
 );

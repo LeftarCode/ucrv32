@@ -28,9 +28,9 @@ typedef enum logic[4:0] {
 } ex_func;
 
 typedef enum logic[1:0] {
-    WB_SRC_NONE, WB_SRC_ALU, WB_SRC_PC_4, WB_SRC_MEM
+    WB_SRC_NONE=0, WB_SRC_ALU=1, WB_SRC_PC_4=2, WB_SRC_MEM=3
 } wb_source_type;
 
 typedef enum logic[1:0] {
-    PC_SRC_NONE, PC_SRC_ALU, PC_SRC_PC_4, PC_SRC_PC_IMM
+    PC_SRC_NONE=0, PC_SRC_ALU=1, PC_SRC_PC_4=2, PC_SRC_PC_IMM=3
 } wb_pc_source_type;

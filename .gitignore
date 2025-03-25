@@ -1,3 +1,4 @@
 obj_dir/
 waveform.vcd
 .vscode
+assets/*.bin

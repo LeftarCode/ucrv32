@@ -6,11 +6,14 @@ module execute (
   input logic n_rst,
 
   input logic [31:0] pc_i,
+  input logic [4:0] rd_i,
   input ex_func ex_func_i,
   input rs1_sel rs1_sel_i,
   input rs2_sel rs2_sel_i,
   input logic memwrite_en_i,
   input logic memread_en_i,
+  input logic branch_i,
+  input logic jmp_i,
   input logic wb_en_i,
   input wb_source_type wb_src_i,
   input wb_pc_source_type wb_pc_src_i,
@@ -18,6 +21,7 @@ module execute (
   input logic [31:0] rs2_data_i,
   input logic [31:0] immediate_i,
 
+  output logic [4:0] rd_o,
   output logic alu_zero_o,
   output logic [31:0] alu_result_o,
   output logic [31:0] pc_o,
@@ -25,11 +29,14 @@ module execute (
   output logic [31:0] pc_imm_o,
   output logic memwrite_en_o,
   output logic memread_en_o,
+  output logic branch_o,
+  output logic jmp_o,
   output logic wb_en_o,
   output wb_source_type wb_src_o,
   output wb_pc_source_type wb_pc_src_o
 );
 
+assign rd_o = rd_i;
 assign pc_o = pc_i;
 assign pc_4_o = pc_i + 4;
 assign pc_imm_o = pc_i + immediate_i;
@@ -38,6 +45,8 @@ assign memread_en_o = memread_en_i;
 assign wb_en_o = wb_en_i;
 assign wb_src_o = wb_src_i;
 assign wb_pc_src_o = wb_pc_src_i;
+assign branch_o = branch_i;
+assign jmp_o = jmp_i;
 
 logic [31:0] alu_operand_a;
 logic [31:0] alu_operand_b;
