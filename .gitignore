@@ -3,3 +3,4 @@ waveform.vcd
 .vscode
 assets/*.bin
 **/.stamp.verilate
+diff
