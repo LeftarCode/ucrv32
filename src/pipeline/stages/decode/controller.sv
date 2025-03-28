@@ -5,7 +5,6 @@ module controller (
   input logic [6:0] funct7_i,
   input logic [2:0] funct3_i,
 
-
   output ex_func ex_func_o,
   output rs1_sel rs1_sel_o,
   output rs2_sel rs2_sel_o,
@@ -70,19 +69,19 @@ always_comb begin
       case (funct3_i)
         `FUNCT3_LB: 
           {ex_func_o, rs1_sel_o, rs2_sel_o, memwrite_en_o, memread_en_o, wb_en_o, wb_src_o, wb_pc_src_o} =
-            {ALU_NONE, RS1_VALUE, RS2_VALUE, `DISABLE, `ENABLE, `ENABLE, WB_SRC_MEM, PC_SRC_NONE};
+            {ALU_ADD, RS1_VALUE, IMM_VALUE, `DISABLE, `ENABLE, `ENABLE, WB_SRC_MEM, PC_SRC_NONE};
         `FUNCT3_LH: 
           {ex_func_o, rs1_sel_o, rs2_sel_o, memwrite_en_o, memread_en_o, wb_en_o, wb_src_o, wb_pc_src_o} =
-            {ALU_NONE, RS1_VALUE, RS2_VALUE, `DISABLE, `ENABLE, `ENABLE, WB_SRC_MEM, PC_SRC_NONE};
+            {ALU_ADD, RS1_VALUE, IMM_VALUE, `DISABLE, `ENABLE, `ENABLE, WB_SRC_MEM, PC_SRC_NONE};
         `FUNCT3_LW: 
           {ex_func_o, rs1_sel_o, rs2_sel_o, memwrite_en_o, memread_en_o, wb_en_o, wb_src_o, wb_pc_src_o} =
-            {ALU_NONE, RS1_VALUE, RS2_VALUE, `DISABLE, `ENABLE, `ENABLE, WB_SRC_MEM, PC_SRC_NONE};
+            {ALU_ADD, RS1_VALUE, IMM_VALUE, `DISABLE, `ENABLE, `ENABLE, WB_SRC_MEM, PC_SRC_NONE};
         `FUNCT3_LBU:
           {ex_func_o, rs1_sel_o, rs2_sel_o, memwrite_en_o, memread_en_o, wb_en_o, wb_src_o, wb_pc_src_o} =
-            {ALU_NONE, RS1_VALUE, RS2_VALUE, `DISABLE, `ENABLE, `ENABLE, WB_SRC_MEM, PC_SRC_NONE};
+            {ALU_ADD, RS1_VALUE, IMM_VALUE, `DISABLE, `ENABLE, `ENABLE, WB_SRC_MEM, PC_SRC_NONE};
         `FUNCT3_LHU:
           {ex_func_o, rs1_sel_o, rs2_sel_o, memwrite_en_o, memread_en_o, wb_en_o, wb_src_o, wb_pc_src_o} =
-            {ALU_NONE, RS1_VALUE, RS2_VALUE, `DISABLE, `ENABLE, `ENABLE, WB_SRC_MEM, PC_SRC_NONE};
+            {ALU_ADD, RS1_VALUE, IMM_VALUE, `DISABLE, `ENABLE, `ENABLE, WB_SRC_MEM, PC_SRC_NONE};
         default:
           {ex_func_o, rs1_sel_o, rs2_sel_o, memwrite_en_o, memread_en_o, wb_en_o, wb_src_o, wb_pc_src_o} =
             {ALU_NONE, RS1_VALUE, RS2_VALUE, `DISABLE, `DISABLE, `DISABLE, WB_SRC_NONE, PC_SRC_NONE};

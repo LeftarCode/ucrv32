@@ -7,6 +7,7 @@ module ex_mem_stage (
   input logic [4:0] ex_rd_i,
   input logic ex_alu_zero_i,
   input logic [31:0] ex_alu_result_i,
+  input logic [31:0] ex_rs2_data_i,
   input logic [31:0] ex_pc_i,
   input logic [31:0] ex_pc_4_i,
   input logic [31:0] ex_pc_imm_i,
@@ -21,6 +22,7 @@ module ex_mem_stage (
   output logic [4:0] mem_rd_o,
   output logic mem_alu_zero_o,
   output logic [31:0] mem_alu_result_o,
+  output logic [31:0] mem_rs2_data_o,
   output logic [31:0] mem_pc_o,
   output logic [31:0] mem_pc_4_o,
   output logic [31:0] mem_pc_imm_o,
@@ -38,6 +40,7 @@ always_ff @(posedge clk_i or negedge n_rst) begin
     mem_rd_o <= 5'b0;
     mem_alu_zero_o <= `DISABLE;
     mem_alu_result_o <= `ZERO;
+    mem_rs2_data_o <= `ZERO;
     mem_pc_o <= `ZERO;
     mem_pc_4_o <= `ZERO;
     mem_pc_imm_o <= `ZERO;
@@ -54,6 +57,7 @@ always_ff @(posedge clk_i or negedge n_rst) begin
       mem_rd_o <= 5'b0;
       mem_alu_zero_o <= `DISABLE;
       mem_alu_result_o <= `ZERO;
+      mem_rs2_data_o <= `ZERO;
       mem_pc_o <= `ZERO;
       mem_pc_4_o <= `ZERO;
       mem_pc_imm_o <= `ZERO;
@@ -69,6 +73,7 @@ always_ff @(posedge clk_i or negedge n_rst) begin
       mem_rd_o <= ex_rd_i;
       mem_alu_zero_o <= ex_alu_zero_i;
       mem_alu_result_o <= ex_alu_result_i;
+      mem_rs2_data_o <= ex_rs2_data_i;
       mem_pc_o <= ex_pc_i;
       mem_pc_4_o <= ex_pc_4_i;
       mem_pc_imm_o <= ex_pc_imm_i;

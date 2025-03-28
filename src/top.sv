@@ -9,40 +9,39 @@
 `include "pipeline/registers/id_ex_stage.sv"
 `include "pipeline/registers/ex_mem_stage.sv"
 `include "common/ram.sv"
-`include "common/data_ram.sv"
 `include "common/multiplexers/mux2to1.sv"
 
 module top (
   input wire clk_i,
   input wire n_rst,
-
-  // FIXME: TEMP input
-  input logic alu_next_pc_en,
-  input logic [31:0] alu_next_pc,
   
   output logic [4:0] rd_o,
-  output logic memwrite_en_o,
   output logic wb_en_o,
-  output logic [31:0] wb_value_o,
-  output logic [31:0] next_pc_o,
-  output logic branch_taken_o
+  output logic [31:0] wb_value_o
 );
+  logic fetch_stall_o;
+  logic mem_stall_o;
+  logic pc_stall;
+
+  assign pc_stall = fetch_stall_o | mem_stall_o;
 
   // =============================
   // PC handling
   // =============================
+  logic branch_taken;
+  logic [31:0] branch_pc;
   logic [31:0] pc = 32'b0;
   logic [31:0] next_pc;
   mux2to1 pc_mux(
-    .sel(alu_next_pc_en),
-    .a(pc + 32'd4),
-    .b(alu_next_pc),
+    .sel(branch_taken),
+    .a(pc_stall == 1'b0 ? (pc + 32'd4) : pc),
+    .b(branch_pc),
     .y(next_pc)
   );
 
   always_ff @(posedge clk_i)
   begin
-      pc <= next_pc;
+    pc <= next_pc;
   end
 
   // =============================
@@ -51,11 +50,6 @@ module top (
   ram_interface iram_if (clk_i, clk_i);
   ram instruction_memory(
     .ram_if(iram_if.slave)
-  );
-
-  ram_interface dram_if (clk_i, clk_i);
-  data_ram data_memory(
-    .ram_if(dram_if.slave)
   );
   
   // =============================
@@ -108,6 +102,7 @@ module top (
   logic [4:0] ex_mem_rd_i;
   logic ex_mem_alu_zero_i;
   logic [31:0] ex_mem_alu_result_i;
+  logic [31:0] ex_mem_rs2_data_i;
   logic [31:0] ex_mem_pc_i;
   logic [31:0] ex_mem_pc_4_i;
   logic [31:0] ex_mem_pc_imm_i;
@@ -122,6 +117,7 @@ module top (
   logic [4:0] ex_mem_rd_o;
   logic ex_mem_alu_zero_o;
   logic [31:0] ex_mem_alu_result_o;
+  logic [31:0] ex_mem_rs2_data_o;
   logic [31:0] ex_mem_pc_o;
   logic [31:0] ex_mem_pc_4_o;
   logic [31:0] ex_mem_pc_omm_o;
@@ -143,16 +139,26 @@ module top (
   logic ex_mem_flush = 1'b0;
   logic ex_mem_stall = 1'b0;
 
+  assign if_id_stall = mem_stall_o;
+  assign id_ex_stall = mem_stall_o;
+  assign ex_mem_stall = mem_stall_o;
+
+  assign if_id_flush = branch_taken;
+  assign id_ex_flush = branch_taken;
+  assign ex_mem_flush = branch_taken;
+
   // =============================
   // Fetch stage
   // =============================
   fetch fetch(
     .clk_i(clk_i),
+    .flush_i(branch_taken),
     .pc_i(pc),
     .instruction_o(if_id_instruction_i),
     .pc_o (if_id_pc_i),
     .ram_if(iram_if.master),
-    .valid_o(if_id_valid_i)
+    .valid_o(if_id_valid_i),
+    .stall_o(fetch_stall_o)
   );
 
   // =============================
@@ -264,6 +270,7 @@ module top (
     .rd_o(ex_mem_rd_i),
     .alu_zero_o(ex_mem_alu_zero_i),
     .alu_result_o(ex_mem_alu_result_i),
+    .rs2_data_o(ex_mem_rs2_data_i),
     .pc_o(ex_mem_pc_i),
     .pc_4_o(ex_mem_pc_4_i),
     .pc_imm_o(ex_mem_pc_imm_i),
@@ -288,6 +295,7 @@ module top (
     .ex_rd_i(ex_mem_rd_i),
     .ex_alu_zero_i(ex_mem_alu_zero_i),
     .ex_alu_result_i(ex_mem_alu_result_i),
+    .ex_rs2_data_i(ex_mem_rs2_data_i),
     .ex_pc_i(ex_mem_pc_i),
     .ex_pc_4_i(ex_mem_pc_4_i),
     .ex_pc_imm_i(ex_mem_pc_imm_i),
@@ -302,6 +310,7 @@ module top (
     .mem_rd_o(ex_mem_rd_o),
     .mem_alu_zero_o(ex_mem_alu_zero_o),
     .mem_alu_result_o(ex_mem_alu_result_o),
+    .mem_rs2_data_o(ex_mem_rs2_data_o),
     .mem_pc_o(ex_mem_pc_o),
     .mem_pc_4_o(ex_mem_pc_4_o),
     .mem_pc_imm_o(ex_mem_pc_omm_o),
@@ -321,6 +330,7 @@ module top (
     .rd_i(ex_mem_rd_o),
     .alu_zero_i(ex_mem_alu_zero_o),
     .alu_result_i(ex_mem_alu_result_o),
+    .rs2_data_i(ex_mem_rs2_data_o),
     .pc_i(ex_mem_pc_o),
     .pc_4_i(ex_mem_pc_4_o),
     .pc_imm_i(ex_mem_pc_omm_o),
@@ -333,12 +343,12 @@ module top (
     .wb_pc_src_i(ex_mem_wb_pc_src_o),
 
     .rd_o(rd_o),
-    .memwrite_en_o(memwrite_en_o),
     .wb_en_o(wb_en_o),
     .wb_value_o(wb_value_o),
-    .next_pc_o(next_pc_o),
-    .branch_taken_o(branch_taken_o),
-    .ram_if(dram_if.master)
+    .next_pc_o(branch_pc),
+    .branch_taken_o(branch_taken),
+    .stall_o(mem_stall_o),
+    .ram_if(iram_if.master)
   );
 
 endmodule

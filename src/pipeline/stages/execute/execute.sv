@@ -24,6 +24,7 @@ module execute (
   output logic [4:0] rd_o,
   output logic alu_zero_o,
   output logic [31:0] alu_result_o,
+  output logic [31:0] rs2_data_o,
   output logic [31:0] pc_o,
   output logic [31:0] pc_4_o,
   output logic [31:0] pc_imm_o,
@@ -37,6 +38,7 @@ module execute (
 );
 
 assign rd_o = rd_i;
+assign rs2_data_o = rs2_data_i;
 assign pc_o = pc_i;
 assign pc_4_o = pc_i + 4;
 assign pc_imm_o = pc_i + immediate_i;
