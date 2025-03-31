@@ -7,7 +7,7 @@
 - **RV32I Instruction Set:** Implements the basic subset of the RISC-V architecture.
 - **5-Stage Pipeline:** Includes Instruction Fetch (IF), Instruction Decode (ID), Execution (EX), Memory Access/Write (MEM), and Write Back (WB) stages.
 - **Educational Focus:** Designed to help users understand key digital design and processor architecture principles.
-- **Simulation Support:** Easily simulate your design using Verilator for a tick-by-tick verification.
+- **Simulation Support:** Easily simulate your design using Verilator for tick-by-tick verification.
 
 ## Overview
 
@@ -32,12 +32,32 @@ The project is intended as a learning tool for students and hobbyists interested
     ```
 
 2. **Setup Simulation Environment:**
-    Follow the instructions in the repository’s documentation to configure Verilator and compile the simulation.
+    Follow the instructions below to configure and run the simulation.
 
-## Usage
+## Simulation
 
-- **Simulation:** Run the simulation using Verilator to observe the tick-by-tick operation of the processor.
-- **Experimentation:** Modify the design, add new features, or implement additional test benches to further explore digital design concepts.
+To run the simulation and view the waveform:
+
+1. Navigate to the `tb/top` directory:
+    ```bash
+    cd tb/top
+    ```
+2. Execute `make`:
+    ```bash
+    make
+    ```
+3. The simulation output will appear in the directory as a waveform file.
+
+### Instruction Loading
+
+By default, the simulation loads the file `assets/instr.bin`. This file is a specially formatted batch file for BRAM that has been properly divided into segments. If needed, you can generate or update this file using the Python script:
+```bash
+python3 assets/convert_bin_to_hex.py
+```
+*Note: The simulation startup process will be improved in future updates.*
+### Usage
+- **Simulation**: Run the simulation using Verilator to observe the tick-by-tick operation of the processor.
+- **Experimentation**: Modify the design, add new features, or implement additional test benches to further explore digital design concepts.
 
 ## Contributing
 
@@ -46,7 +66,3 @@ Contributions are welcome! If you have ideas for improvements, bug fixes, or new
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
-
----
-
-Happy coding and learning!
