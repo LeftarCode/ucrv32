@@ -1,5 +1,5 @@
 # ucrv32
-
+![cover](cover.webp)
 **ucrv32** is a simple educational RV32I microcontroller featuring a 5-stage pipeline architecture. Written in SystemVerilog and equipped with simulation support via Verilator, it offers a practical platform for learning digital design and computer architecture concepts.
 
 ## Features
