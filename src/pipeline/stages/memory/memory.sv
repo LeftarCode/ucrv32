@@ -53,7 +53,7 @@ always_ff @(posedge clk_i or negedge n_rst) begin
   end else if (memory_op && (memory_delay == 1'b0)) begin
     memory_delay <= 1'b1;
   end else if (memory_delay > 0) begin
-    memory_delay <= memory_delay + 1;
+    memory_delay <= memory_delay - 1;
   end
 end
 

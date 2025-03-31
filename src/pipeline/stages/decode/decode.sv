@@ -8,6 +8,9 @@ module decode (
   input logic n_rst,
   input logic [31:0] instruction_i,
   input logic [31:0] pc_i,
+  input logic [4:0] regfile_rd_i,
+  input logic regfile_we_i,
+  input logic [31:0] regfile_rd_value_i,
 
   output logic [31:0] pc_o,
   output logic [4:0] rd_o,
@@ -68,9 +71,9 @@ regfile regfile(
   .n_rst(n_rst),
   .rs1_addr_i(decoder_rs1_o),
   .rs2_addr_i(decoder_rs2_o),
-  .rd_addr_i(TEMP_rd_addr_i),
-  .wd_i(TEMP_wd_i),
-  .we_i(TEMP_we_i),
+  .rd_addr_i(regfile_rd_i),
+  .wd_i(regfile_rd_value_i),
+  .we_i(regfile_we_i),
   .rs1_data_o(rs1_data_o),
   .rs2_data_o(rs2_data_o)
 );

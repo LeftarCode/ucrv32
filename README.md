@@ -7,10 +7,6 @@
 4. MEM - memory access.
 5. WB - write back.
 
-# Not working
-- Memory write cause i don't forward rs2 value to save it (ID -> EX -> MEM)
-
 # Development toolchain
-- Synthesis: `yosys`,
-- Simulator: `verilator`,
+- Simulation: `verilator`,
 - Waveform: `GTKwave`.

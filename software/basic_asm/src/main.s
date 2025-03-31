@@ -1,12 +1,20 @@
     .section .text
     .globl _start
 _start:
-    lw   x1, 0(x0)
-    lw   x1, 0(x0)
-    lw   x1, 0(x0)
-    sw x1, 0(x0)
-    lw   x1, 0(x0)
-    lw   x1, 0(x0)
-    lw   x1, 0(x0)
+    addi x1, x0, 5
+    addi x1, x1, 5
+    addi x1, x1, 5
+    addi x2, x2, 5
+    addi x0, x0, 0
+    addi x0, x0, 0
+    addi x0, x0, 0
+    addi x0, x0, 0
+    addi x0, x0, 0
+    addi x0, x0, 0
+    addi x0, x0, 0
+    addi x0, x0, 0
+    addi x0, x0, 0
+    addi x0, x0, 0
+    addi x2, x2, 5
 loop:
-    jal x1, loop      # Loop infinitely
+    jal x1, loop

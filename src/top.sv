@@ -5,19 +5,17 @@
 `include "pipeline/stages/decode/decode.sv"
 `include "pipeline/stages/execute/execute.sv"
 `include "pipeline/stages/memory/memory.sv"
+`include "pipeline/stages/write_back/write_back.sv"
 `include "pipeline/registers/if_id_stage.sv"
 `include "pipeline/registers/id_ex_stage.sv"
 `include "pipeline/registers/ex_mem_stage.sv"
+`include "pipeline/registers/mem_wb_stage.sv"
 `include "common/ram.sv"
 `include "common/multiplexers/mux2to1.sv"
 
 module top (
   input wire clk_i,
-  input wire n_rst,
-  
-  output logic [4:0] rd_o,
-  output logic wb_en_o,
-  output logic [31:0] wb_value_o
+  input wire n_rst
 );
   logic fetch_stall_o;
   logic mem_stall_o;
@@ -130,6 +128,23 @@ module top (
   wb_pc_source_type ex_mem_wb_pc_src_o;
 
   // =============================
+  // MEM_WB signals
+  // =============================
+  logic [4:0] mem_wb_rd_i;
+  logic mem_wb_en_i;
+  logic [31:0] mem_wb_value_i;
+
+  logic [4:0] mem_wb_rd_o;
+  logic mem_wb_en_o;
+  logic [31:0] mem_wb_value_o;
+  // =============================
+  // WB signals
+  // =============================
+  logic [4:0] wb_id_rd_o;
+  logic wb_id_en_o;
+  logic [31:0] wb_id_value_o;
+
+  // =============================
   // FIXME: const signals
   // =============================
   logic if_id_flush = 1'b0;
@@ -138,6 +153,8 @@ module top (
   logic id_ex_stall = 1'b0;
   logic ex_mem_flush = 1'b0;
   logic ex_mem_stall = 1'b0;
+  logic mem_wb_flush = 1'b0;
+  logic mem_wb_stall = 1'b0;
 
   assign if_id_stall = mem_stall_o;
   assign id_ex_stall = mem_stall_o;
@@ -184,6 +201,9 @@ module top (
     .n_rst(n_rst),
     .instruction_i(if_id_instruction_o),
     .pc_i(if_id_pc_o),
+    .regfile_rd_i(wb_id_rd_o),
+    .regfile_we_i(wb_id_en_o),
+    .regfile_rd_value_i(wb_id_value_o),
     
     .pc_o(id_ex_pc_i),
     .rd_o(id_ex_rd_i),
@@ -342,13 +362,41 @@ module top (
     .wb_src_i(ex_mem_wb_src_o),
     .wb_pc_src_i(ex_mem_wb_pc_src_o),
 
-    .rd_o(rd_o),
-    .wb_en_o(wb_en_o),
-    .wb_value_o(wb_value_o),
+    .rd_o(mem_wb_rd_i),
+    .wb_en_o(mem_wb_en_i),
+    .wb_value_o(mem_wb_value_i),
     .next_pc_o(branch_pc),
     .branch_taken_o(branch_taken),
     .stall_o(mem_stall_o),
     .ram_if(iram_if.master)
+  );
+
+  mem_wb_stage mem_wb_stage (
+    .clk_i(clk_i),
+    .n_rst(n_rst),
+    .flush(mem_wb_flush),
+    .stall(mem_wb_stall),
+
+    .mem_rd_i(mem_wb_rd_i),
+    .mem_wb_en_i(mem_wb_en_i),
+    .mem_wb_value_i(mem_wb_value_i),
+
+    .wb_rd_o(mem_wb_rd_o),
+    .wb_en_o(mem_wb_en_o),
+    .wb_value_o(mem_wb_value_o)
+  );
+
+  write_back write_back (
+    .clk_i(clk_i),
+    .n_rst(n_rst),
+
+    .rd_i(mem_wb_rd_o),
+    .wb_en_i(mem_wb_en_o),
+    .wb_value_i(mem_wb_value_o),
+
+    .rd_o(wb_id_rd_o),
+    .rd_we_en_o(wb_id_en_o),
+    .rd_value_o(wb_id_value_o)
   );
 
 endmodule

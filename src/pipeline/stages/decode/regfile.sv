@@ -12,7 +12,7 @@ module regfile (
   logic [31:0] reg_array [31:0];
 
   always_ff @(posedge clk_i or negedge n_rst) begin
-    if (n_rst) begin
+    if (!n_rst) begin
       integer i;
       for (i = 0; i < 32; i = i + 1) begin
         reg_array[i] <= 32'd0;
