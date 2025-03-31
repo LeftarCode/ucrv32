@@ -52,7 +52,7 @@ To run the simulation and view the waveform:
 
 By default, the simulation loads the file `assets/instr.bin`. This file is a specially formatted batch file for BRAM that has been properly divided into segments. If needed, you can generate or update this file using the Python script:
 ```bash
-python3 assets/convert_bin_to_hex.py
+python3 assets/convert_bin_to_hex.py [raw_bin_file]
 ```
 *Note: The simulation startup process will be improved in future updates.*
 ### Usage
