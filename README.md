@@ -59,9 +59,9 @@ python3 assets/convert_bin_to_hex.py [raw_bin_file]
 - **Simulation**: Run the simulation using Verilator to observe the tick-by-tick operation of the processor.
 - **Experimentation**: Modify the design, add new features, or implement additional test benches to further explore digital design concepts.
 
-## Contributing
-
-Contributions are welcome! If you have ideas for improvements, bug fixes, or new features, please open an issue or submit a pull request.
+## TODO
+- Create Pipline Controller to stall pipeline if needed (eg. data hazards).
+- Create Forwarding Unit to forward some results to EX stage.
 
 ## License
 
